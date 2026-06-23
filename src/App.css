@@ -1,0 +1,175 @@
+.btn-similar {
+    background: #ecf8ef;
+    color: #000;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 22px;
+    font-size: 1em;
+    font-weight: 500;
+    margin: 0 2px 8px 2px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-similar:hover {
+    background: #b6e2c6;
+    color: #246231;
+}
+.btn-similar-close:hover {
+    background: #b6e2c6;
+    color: #246231;
+}
+.similar-popup .modal-content {
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(36,98,49,0.18);
+    border: 2px solid #246231;
+}
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+}
+header {
+    background-color: #ecf8ef;
+    color: #246231;
+    padding: 10px 20px;
+    text-align: center;
+}
+.recipes-container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+ul li {
+    background: #f9f9f9;
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background 0.3s;
+    cursor: pointer;
+}
+
+ul li:hover {
+    background: #ffefef;
+}
+
+.recipe-header {
+    display: flex; /* Use flexbox for layout */
+    justify-content: space-between; /* Space out content */
+    align-items: center; /* Center items vertically */
+    gap: 10px; /* Add spacing between items */
+}
+
+.recipe-title {
+    font-size: 1.5em;
+    font-weight: bold;
+    flex: 1; /* Allow title to take up available space */
+    margin: 0; /* Reset default margins */
+    white-space: pre-wrap; /* Prevent wrapping */
+    overflow: hidden; /* Hide overflow text */
+    text-overflow: ellipsis; /* Add ellipsis for long titles */
+}
+
+h2 {
+    font-size: 0.8em;
+}
+
+h3 {
+    font-size: 0.8em;
+    margin: 0;
+    white-space: nowrap; /* Prevent wrapping */
+    text-align: right; /* Align content to the right */
+}
+
+.toggle-container{
+    margin: 10px 0;
+    padding: 15px;
+    justify-content: space-between;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.toggle-container:hover {
+    background-color: #ccd7cf;
+}
+
+.toggle-details-container {
+    margin-top: 10px;
+    padding: 10px;
+    background: #ecf8ef;
+    border: 1px solid #246231;
+    border-radius: 4px;
+}
+
+.pill-box-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+    justify-content: center;
+}
+.pill-box {
+    border: none;
+    outline: none;
+    background: #e0e0e0;
+    color: #246231;
+    padding: 8px 22px;
+    border-radius: 999px;
+    font-size: 1em;
+    font-weight: 500;
+    margin: 0 2px 8px 2px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+}
+.pill-box.selected, .pill-box:active {
+    background: #246231;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(36,98,49,0.12);
+}
+.pill-box:hover:not(.selected) {
+    background: #b6e2c6;
+    color: #246231;
+}
+
+.search-bar-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.search-bar-input {
+    width: 100%;
+    max-width: 600px;
+    padding: 12px 16px;
+    font-size: 24px;
+    border: 2px solid #246231;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+    color: #333;
+}
+
+.search-bar-input:focus {
+    border-color: #b6e2c6;
+    box-shadow: 0 4px 12px rgba(36, 98, 49, 0.15);
+}
+
+.search-bar-input::placeholder {
+    color: #999;
+}
