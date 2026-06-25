@@ -201,10 +201,10 @@ const RecipeSummary = ({ recipe }) => {
         <div className="recipe-header">
             <h2 className="recipe-title">{recipe.title}</h2>
             <a href={`single_recipe.html?recipe=${encodeURIComponent(recipe.title)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                <img src={'src/icons/open_new_tab.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
+                <img src={'./icons/open_new_tab.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
             </a>
-            {recipe.servings && (<IconMetric icon={ 'src/icons/servings.svg' } label={ recipe.servings } />)}
-            {getTotalCookTime(recipe) ? (<IconMetric icon={ 'src/icons/clock.svg' } label={ formatTime(getTotalCookTime(recipe)) } />):''}
+            {recipe.servings && (<IconMetric icon={ './icons/servings.svg' } label={ recipe.servings } />)}
+            {getTotalCookTime(recipe) ? (<IconMetric icon={ './icons/clock.svg' } label={ formatTime(getTotalCookTime(recipe)) } />):''}
         </div>
     );
 };
@@ -252,10 +252,10 @@ const RecipeList = ({ recipes, onSimilarClick }) => {
                         <div>
                             <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
                                 {recipe.prep_time > 0 && (
-                                    <IconMetric icon={'src/icons/prep_time.svg'} label={formatTime(recipe.prep_time)} />
+                                    <IconMetric icon={'./icons/prep_time.svg'} label={formatTime(recipe.prep_time)} />
                                 )}
                                 {recipe.cook_time > 0 && (
-                                    <IconMetric icon={'src/icons/cook_time.svg'} label={formatTime(recipe.cook_time)} />
+                                    <IconMetric icon={'./icons/cook_time.svg'} label={formatTime(recipe.cook_time)} />
                                 )}
                                 <button className="btn btn-similar" onClick={() => onSimilarClick(recipe)}>
                                     <span style={{display:'inline-block',verticalAlign:'middle',marginRight:'6px'}}>&#128279;</span> <span>Similar</span>
