@@ -5,4 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/home-recipes/', // Set the base path to './' for relative paths
+  server: {
+    // Ensures the dev server handles strict trailing slashes gracefully
+    strictPort: false, 
+  }
 })

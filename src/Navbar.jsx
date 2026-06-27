@@ -1,28 +1,62 @@
-import React from 'react';
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate for redirection if desired
+import { useAuth } from './AuthContext';
 
-import { Link } from 'react-router-dom';
+export default function Navbar() {
+  const { session, loading, supabase } = useAuth();
+  const navigate = useNavigate();
 
-export default function Navbar({ isLoggedIn, onAuthClick }) {
+  // Handle the async sign out process
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      alert('You have successfully signed out!');
+      navigate('/'); // Optional: redirect user to home page after sign out
+    } catch (error) {
+      alert(`Error signing out: ${error.message}`);
+    }
+  };
+
+  // Prevent UI flickering while checking authentication state
+  if (loading) {
+    return <nav style={styles.nav}>Loading...</nav>; 
+  }
+
   return (
     <nav style={styles.nav}>
       {/* Left Section */}
       <div style={styles.section}>
-        <Link href="/add-recipe" style={styles.link}>Add Recipe</Link>
+        <Link to="/add-recipe" style={styles.link}>
+          <img src={'./icons/add_recipe.svg'} alt="icon" style={{ width: '30px', height: '30px' }} />
+        </Link>
       </div>
 
       {/* Center Section */}
       <div style={{ ...styles.section, ...styles.center }}>
-        <Link href="/" style={styles.logoLink}>
+        <Link to="/" style={styles.logoLink}>
           <span style={styles.logoText}>Recipe Viewer</span>
         </Link>
       </div>
 
       {/* Right Section */}
       <div style={{ ...styles.section, ...styles.right }}>
-        <Link href="/settings" style={styles.link}>Settings</Link>
-        <button onClick={onAuthClick} style={styles.authBtn}>
-          {isLoggedIn ? 'Sign Out' : 'Sign In'}
-        </button>
+        <Link to="/settings" style={styles.link}>
+          <img src={'./icons/settings.svg'} alt="icon" style={{ width: '30px', height: '30px' }} />
+        </Link>
+
+        {/* Conditional Rendering based on login state */}
+        {session ? (
+          /* User is logged in: Show active Sign Out button */
+          <button onClick={handleSignOut} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <img src={'./icons/sign_out.svg'} alt="Sign Out" style={{ width: '30px', height: '30px' }} />
+          </button>
+        ) : (
+          /* User is logged out: Show Link to Sign In page */
+          <Link to="/login" style={styles.link}>
+            <img src={'./icons/sign_in.svg'} alt="Sign In" style={{ width: '30px', height: '30px' }} />
+          </Link>
+        )}
       </div>
     </nav>
   );
