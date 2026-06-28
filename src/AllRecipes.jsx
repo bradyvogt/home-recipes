@@ -97,7 +97,7 @@ const RecipeSummary = ({ recipe }) => {
     return (
         <div className="recipe-header">
             <h2 className="recipe-title">{recipe.title}</h2>
-            <Link to={`/recipe?name=${encodeURIComponent(recipe.title)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <Link to={`/recipe?name=${Helpers.nameToQueryParam(recipe.title)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
                 <img src={'./icons/open_new_tab.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
             </Link>
             {recipe.servings && (<IconMetric icon={ './icons/servings.svg' } label={ recipe.servings } />)}
