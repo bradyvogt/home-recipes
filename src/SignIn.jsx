@@ -14,10 +14,12 @@ function SignIn() {
   }, [session, loading, navigate]);
 
   const handleGoogleLogin = async () => {
+    console.log(window.location.href);
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: window.location.href,
       },
     });
 

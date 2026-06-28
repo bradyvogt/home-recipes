@@ -103,3 +103,33 @@ export const formatCopyIngredients = (recipe) => (recipe.ingredients || []).map(
 export const formatCopyInstructions = (recipe) => (recipe.instructions || []).map((s,i)=>`${i+1}. ${s}`).join('\n');
 
 export const getProperCase = (s) => { if (!s) return ''; return s.split(' ').map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' '); };
+
+/**
+ * Converts a raw human-readable string into a URL-safe query parameter slug.
+ * Example: "Mom's Apple Pie!  " -> "moms-apple-pie"
+ */
+export const nameToQueryParam = (name) => {
+  if (!name) return 'unknown';
+  
+  const normalized = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove punctuation and special characters
+    .replace(/\s+/g, '-')         // Replace spaces with hyphens
+    .replace(/-+/g, '-');         // Collapse multiple consecutive hyphens
+
+  return encodeURIComponent(normalized);
+};
+
+/**
+ * Converts a URL-safe query parameter slug back into a clean, capitalized display name.
+ * Example: "moms-apple-pie" -> "Moms Apple Pie"
+ */
+export const queryParamToName = (param) => {
+  if (!param) return 'Unknown';
+
+  return decodeURIComponent(param)
+    .replace(/-/g, ' ')                                    // Replace hyphens with spaces
+    .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase()) // Capitalize first letter of each word
+    .trim();
+};
