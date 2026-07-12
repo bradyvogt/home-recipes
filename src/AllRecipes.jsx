@@ -5,23 +5,30 @@ import { RECIPES_URL } from './utils/constants.js';
 import { Link } from 'react-router-dom';
 import * as Helpers from './utils/helpers.js';
 
-// Helpers to flexibly parse JSON-LD Recipe objects into a simple internal shape
 const getSimilarRecipes = (recipe, all = window.__loadedRecipes || []) => {
-    const baseIngs = new Set((recipe.ingredients || []).map(i => (typeof i === 'string' ? i.toLowerCase() : Helpers.formatIngredient(i).toLowerCase())));
-    const scored = all.map(r => {
+    const normalizeIngredient = (ingredient) => {
+        const value = typeof ingredient === 'string' ? ingredient : Helpers.formatIngredient(ingredient);
+        return value.toLowerCase();
+    };
+
+    const baseIngredients = new Set((recipe.recipeIngredient || recipe.ingredients || []).map(normalizeIngredient));
+    const scored = all.map((r) => {
         if (r.id === recipe.id) return null;
-        const rIngs = new Set((r.ingredients || []).map(i => (typeof i === 'string' ? i.toLowerCase() : Helpers.formatIngredient(i).toLowerCase())));
+        const recipeIngredients = new Set((r.recipeIngredient || r.ingredients || []).map(normalizeIngredient));
         let common = 0;
-        baseIngs.forEach(x => { if (rIngs.has(x)) common++; });
-        return { recipe: r, score: common, commonIngredients: [...baseIngs].filter(x=>rIngs.has(x)) };
-    }).filter(Boolean).sort((a,b)=>b.score-a.score);
-    return scored.slice(0,10).map(s=>({ ...s.recipe, commonIngredients: s.commonIngredients }));
+        baseIngredients.forEach((item) => { if (recipeIngredients.has(item)) common++; });
+        return {
+            recipe: r,
+            score: common,
+            commonIngredients: [...baseIngredients].filter((item) => recipeIngredients.has(item)),
+        };
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+
+    return scored.slice(0, 10).map((s) => ({ ...s.recipe, commonIngredients: s.commonIngredients }));
 };
 
-// Store loaded recipes globally for helper access
 window.__loadedRecipes = [];
 
-// Generic popup component
 const SimilarRecipePopup = ({ isOpen, onClose, title, recipes }) => {
     if (!isOpen) return null;
 
@@ -39,10 +46,10 @@ const SimilarRecipePopup = ({ isOpen, onClose, title, recipes }) => {
                     <li key={recipe.id} style={{background:'#b6e2c6',margin:'10px 0',borderRadius:'6px',padding:'10px'}}>
                       <div className="row">
                         <div className="col-xs-8 text-left">
-                          <p style={{margin:0,fontWeight:'bold',color:'#246231'}}>{recipe.title}</p>
+                          <p style={{margin:0,fontWeight:'bold',color:'#246231'}}>{recipe.name || recipe.title}</p>
                         </div>
                         <div className="col-xs-4 text-right">
-                          <p style={{margin:0,color:'#246231'}}>Common Ingredients: {recipe.commonIngredients.join(", ")}</p>
+                          <p style={{margin:0,color:'#246231'}}>Common Ingredients: {recipe.commonIngredients.join(', ')}</p>
                         </div>
                       </div>
                     </li>
@@ -92,22 +99,36 @@ const IconMetric = ({ icon, label }) => {
     );
 };
 
-
 const RecipeSummary = ({ recipe }) => {
+    const recipeName = recipe.name || recipe.title || 'Recipe';
+    const categories = recipe.recipeCategory || recipe.categories || [];
+    const cuisine = recipe.recipeCuisine || [];
+    const servingValue = recipe.recipeYield || recipe.servings || null;
+
     return (
         <div className="recipe-header">
-            <h2 className="recipe-title">{recipe.title}</h2>
-            <Link to={`/recipe?name=${Helpers.nameToQueryParam(recipe.title)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <h2 className="recipe-title">{recipeName}</h2>
+            <Link to={`/recipe?name=${Helpers.nameToQueryParam(recipeName)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
                 <img src={'./icons/open_new_tab.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
             </Link>
-            {recipe.servings && (<IconMetric icon={ './icons/servings.svg' } label={ recipe.servings } />)}
-            {Helpers.getTotalCookTime(recipe) ? (<IconMetric icon={ './icons/clock.svg' } label={ Helpers.formatTime(Helpers.getTotalCookTime(recipe)) } />):''}
+            {servingValue ? (<IconMetric icon={ './icons/servings.svg' } label={ servingValue } />) : null}
+            {Helpers.getTotalCookTime(recipe) ? (<IconMetric icon={ './icons/clock.svg' } label={ Helpers.formatTime(Helpers.getTotalCookTime(recipe)) } />) : null}
+            {categories.length > 0 && (
+              <div style={{ marginTop: '8px', fontSize: '0.9rem', color: '#4b5563' }}>
+                {categories.join(', ')}
+              </div>
+            )}
+            {cuisine.length > 0 && (
+              <div style={{ fontSize: '0.9rem', color: '#4b5563' }}>
+                Cuisine: {cuisine.join(', ')}
+              </div>
+            )}
         </div>
     );
 };
 
 const CopyButton = ({ textToCopy }) => {
-    const [copyStatus, setCopyStatus] = useState(""); // '', 'success', 'error'
+    const [copyStatus, setCopyStatus] = useState("");
 
     const handleCopyClick = async () => {
         try {
@@ -119,7 +140,7 @@ const CopyButton = ({ textToCopy }) => {
 
         setTimeout(() => {
             setCopyStatus("");
-        }, 2000); // Hide the indicator after 2 seconds
+        }, 2000);
     };
 
     return (
@@ -136,59 +157,61 @@ const CopyButton = ({ textToCopy }) => {
     );
 };
 
-// Returns a formatted list of recipes with summary and details
 const RecipeList = ({ recipes, onSimilarClick }) => {
 
     return (
         <div>
-            {recipes.map((recipe) => (
-                <ToggleContainer
-                    key={recipe.id}
-                    header={<RecipeSummary key={recipe.id} recipe={recipe} />}
-                    details={
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
-                                {recipe.prep_time > 0 && (
-                                    <IconMetric icon={'./icons/prep_time.svg'} label={Helpers.formatTime(recipe.prep_time)} />
+            {recipes.map((recipe) => {
+                const ingredients = recipe.recipeIngredient || recipe.ingredients || [];
+                const instructions = recipe.recipeInstructions || recipe.instructions || [];
+                return (
+                    <ToggleContainer
+                        key={recipe.id}
+                        header={<RecipeSummary key={recipe.id} recipe={recipe} />}
+                        details={
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                                    {recipe.prep_time > 0 && (
+                                        <IconMetric icon={'./icons/prep_time.svg'} label={Helpers.formatTime(recipe.prep_time)} />
+                                    )}
+                                    {recipe.cook_time > 0 && (
+                                        <IconMetric icon={'./icons/cook_time.svg'} label={Helpers.formatTime(recipe.cook_time)} />
+                                    )}
+                                    <button className="btn btn-similar" onClick={() => onSimilarClick(recipe)}>
+                                        <span style={{display:'inline-block',verticalAlign:'middle',marginRight:'6px'}}>&#128279;</span> <span>Similar</span>
+                                    </button>
+                                </div>
+
+                                {ingredients.length > 0 && (
+                                    <>
+                                        <h4>Ingredients <CopyButton textToCopy={Helpers.formatCopyIngredients(recipe)}/></h4>
+                                        <ul>
+                                            {ingredients.map((ingredient, idx) => (
+                                                <li key={idx}>{Helpers.formatIngredient(ingredient)}</li>
+                                            ))}
+                                        </ul>
+                                    </>
                                 )}
-                                {recipe.cook_time > 0 && (
-                                    <IconMetric icon={'./icons/cook_time.svg'} label={Helpers.formatTime(recipe.cook_time)} />
+
+                                {instructions.length > 0 && (
+                                    <>
+                                        <h4>Instructions <CopyButton textToCopy={Helpers.formatCopyInstructions(recipe)}/></h4>
+                                        <ul>
+                                            {instructions.map((instruction, index) => (
+                                                <li key={index}>{instruction}</li>
+                                            ))}
+                                        </ul>
+                                    </>
                                 )}
-                                <button className="btn btn-similar" onClick={() => onSimilarClick(recipe)}>
-                                    <span style={{display:'inline-block',verticalAlign:'middle',marginRight:'6px'}}>&#128279;</span> <span>Similar</span>
-                                </button>
                             </div>
-
-                            {recipe.ingredients && (
-                                <>
-                                    <h4>Ingredients <CopyButton textToCopy={Helpers.formatCopyIngredients(recipe)}/></h4>
-                                    <ul>
-                                        {recipe.ingredients.map((ingredient, idx) => (
-                                            <li key={idx}>{Helpers.formatIngredient(ingredient)}</li>
-                                        ))}
-                                    </ul>
-                                </>
-                            )}
-
-                            {recipe.instructions && (
-                                <>
-                                    <h4>Instructions <CopyButton textToCopy={Helpers.formatCopyInstructions(recipe)}/></h4>
-                                    <ul>
-                                        {recipe.instructions.map((instruction, index) => (
-                                            <li key={index}>{instruction}</li>
-                                        ))}
-                                    </ul>
-                                </>
-                            )}
-                        </div>
-                    }
-                />
-            ))}
+                        }
+                    />
+                );
+            })}
         </div>
     );
 };
 
-// SearchBar: simple search input for filtering recipes
 const SearchBar = ({ searchValue, onSearchChange }) => {
     return (
         <div className="search-bar-container">

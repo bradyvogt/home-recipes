@@ -6,12 +6,10 @@ import { RECIPES_URL } from './utils/supabaseClient';
 export default function SingleRecipe() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Extract query param target
   const rawParam = searchParams.get('name');
 
   useEffect(() => {
@@ -21,13 +19,11 @@ export default function SingleRecipe() {
           throw new Error('No recipe parameter specified in URL.');
         }
 
-        // Convert slug format back to clean title text
         const targetTitle = queryParamToName(rawParam).toLowerCase();
 
-        // 1. Try to read from global layout cache
         if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
           const found = window.__loadedRecipes.find(
-            (r) => (r.title || '').toLowerCase() === targetTitle
+            (r) => ((r.name || r.title || '').toLowerCase() === targetTitle)
           );
           if (found) {
             setRecipe(found);
@@ -36,29 +32,24 @@ export default function SingleRecipe() {
           }
         }
 
-        // 2. Fetch fallback data if user hard-refreshed the page
         const response = await fetch(RECIPES_URL);
         if (!response.ok) throw new Error('Failed to fetch recipes from server.');
-        
+
         const rawData = await response.json();
-        
-        // Parse the payload matching your application layout
+
         const parsedRecipes = window.Helpers
           ? window.Helpers.parseJsonLdToRecipes(rawData)
           : rawData;
 
-        // Save to global window memory cache
         window.__loadedRecipes = parsedRecipes;
 
         const foundRecipe = parsedRecipes.find(
-          (r) => (r.title || '').toLowerCase() === targetTitle
+          (r) => ((r.name || r.title || '').toLowerCase() === targetTitle)
         );
 
         if (!foundRecipe) {
           throw new Error(`Could not find a recipe matching "${queryParamToName(rawParam)}"`);
         }
-
-        console.log(`Recipe found: ${foundRecipe}`);
 
         setRecipe(foundRecipe);
         setLoading(false);
@@ -93,60 +84,107 @@ export default function SingleRecipe() {
     );
   }
 
-  // Deconstruct safely out of parsed schema structure
-  const { 
+  const {
     title,
     name,
-    image, 
-    description, 
-    recipeIngredient = [], 
-    recipeInstructions = [], 
-    prepTime, 
-    cookTime, 
-    rating 
+    image,
+    description,
+    sourceType,
+    sourceLink,
+    recipeYield,
+    prepTime,
+    cookTime,
+    totalTime,
+    recipeIngredient = [],
+    recipeInstructions = [],
+    recipeCategory = [],
+    recipeCuisine = [],
+    rating,
   } = recipe;
+
+  const displayName = name || title || 'Untitled Recipe';
+  const servings = recipeYield || recipe.servings || 0;
 
   return (
     <article style={styles.pageContainer}>
-      {/* React Router internal backward stack routing */}
       <button onClick={() => navigate(-1)} style={styles.textBackButton}>
         &larr; Back to Recipes
       </button>
 
       <header style={styles.header}>
-        <h1 style={styles.title}>{title || name || 'Untitled Recipe'}</h1>
-        
-        {rating && (
+        <h1 style={styles.title}>{displayName}</h1>
+
+        {rating ? (
           <div style={styles.ratingBadge}>
             Rating: ★ {Number(rating).toFixed(1)}
+          </div>
+        ) : null}
+
+        {(sourceType || sourceLink) && (
+          <div style={styles.sourceRow}>
+            {sourceType && <span style={styles.sourceBadge}>{sourceType}</span>}
+            {sourceLink && (
+              <a
+                href={sourceLink}
+                target="_blank"
+                rel="noreferrer"
+                style={styles.sourceLink}
+              >
+                View source
+              </a>
+            )}
           </div>
         )}
 
         {image && (
-          <img 
-            src={Array.isArray(image) ? image[0] : image} 
-            alt={title} 
-            style={styles.heroImage} 
+          <img
+            src={Array.isArray(image) ? image[0] : image}
+            alt={displayName}
+            style={styles.heroImage}
           />
         )}
 
         {description && <p style={styles.description}>{description}</p>}
       </header>
 
-      {(prepTime || cookTime) && (
+      {(servings || prepTime || cookTime || totalTime || recipeCategory.length || recipeCuisine.length) && (
         <section style={styles.metaGrid}>
-          {prepTime && (
+          {servings ? (
+            <div style={styles.metaItem}>
+              <span style={styles.metaLabel}>Servings</span>
+              <span style={styles.metaValue}>{servings}</span>
+            </div>
+          ) : null}
+          {prepTime ? (
             <div style={styles.metaItem}>
               <span style={styles.metaLabel}>Prep Time</span>
               <span style={styles.metaValue}>{prepTime}</span>
             </div>
-          )}
-          {cookTime && (
+          ) : null}
+          {cookTime ? (
             <div style={styles.metaItem}>
               <span style={styles.metaLabel}>Cook Time</span>
               <span style={styles.metaValue}>{cookTime}</span>
             </div>
-          )}
+          ) : null}
+          {totalTime ? (
+            <div style={styles.metaItem}>
+              <span style={styles.metaLabel}>Total Time</span>
+              <span style={styles.metaValue}>{totalTime}</span>
+            </div>
+          ) : null}
+          {recipeCategory.length ? (
+            <div style={styles.metaItem}>
+              <span style={styles.metaLabel}>Categories</span>
+              <span style={styles.metaValue}>{recipeCategory.join(', ')}</span>
+            </div>
+          ) : null}
+          {recipeCuisine.length ? (
+            <div style={styles.metaItem}>
+              <span style={styles.metaLabel}>Cuisine</span>
+              <span style={styles.metaValue}>{recipeCuisine.join(', ')}</span>
+            </div>
+          ) : null}
         </section>
       )}
 
@@ -168,14 +206,11 @@ export default function SingleRecipe() {
         <section style={styles.sectionCard}>
           <h2 style={styles.sectionTitle}>Instructions</h2>
           <ol style={styles.instructionList}>
-            {recipeInstructions.map((step, idx) => {
-              const stepText = typeof step === 'object' ? step.text : step;
-              return (
-                <li key={idx} style={styles.instructionItem}>
-                  <p>{stepText}</p>
-                </li>
-              );
-            })}
+            {recipeInstructions.map((step, idx) => (
+              <li key={idx} style={styles.instructionItem}>
+                <p>{step}</p>
+              </li>
+            ))}
           </ol>
         </section>
       </div>
@@ -183,7 +218,6 @@ export default function SingleRecipe() {
   );
 }
 
-// Scannable Style Layout Object (Stays uniform with earlier setups)
 const styles = {
   pageContainer: {
     maxWidth: '800px',
@@ -245,6 +279,26 @@ const styles = {
     fontSize: '0.875rem',
     marginBottom: '15px',
   },
+  sourceRow: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: '15px',
+  },
+  sourceBadge: {
+    backgroundColor: '#e0f2fe',
+    color: '#0c4a6e',
+    padding: '4px 10px',
+    borderRadius: '9999px',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+  },
+  sourceLink: {
+    color: '#2563eb',
+    textDecoration: 'none',
+    fontWeight: '600',
+  },
   heroImage: {
     width: '100%',
     maxHeight: '400px',
@@ -258,7 +312,8 @@ const styles = {
     fontStyle: 'italic',
   },
   metaGrid: {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
     gap: '20px',
     backgroundColor: '#f3f4f6',
     padding: '15px 20px',
@@ -329,5 +384,5 @@ const styles = {
   spinner: {
     fontSize: '1.2rem',
     color: '#4b5563',
-  }
+  },
 };
