@@ -1,9 +1,12 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { useHref } from 'react-router-dom';
 
 function SignIn() {
   const navigate = useNavigate();
+  const basePath = useHref('/'); 
+
   // Pull both state and the central client instance
   const { session, loading, supabase } = useAuth();
 
@@ -19,7 +22,7 @@ function SignIn() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.href,
+        redirectTo: `${window.location.origin}${basePath}`,
       },
     });
 
