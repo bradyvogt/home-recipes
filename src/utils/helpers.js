@@ -1,3 +1,5 @@
+import { SchemaOrgRecipeSchema } from '../RecipeSchema';
+
 export const parseDurationToMinutes = (iso) => {
     if (!iso || typeof iso !== 'string') return 0;
     const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -14,6 +16,90 @@ export const getTextFromInstruction = (ins) => {
     if (Array.isArray(ins)) return ins.map(getTextFromInstruction).join(' ');
     if (ins.text) return ins.text;
     return '';
+};
+
+const normalizeRecipeNode = (node) => {
+    const name = node.name || node.headline || node.title || `Recipe ${node['@id'] || node.id || ''}`;
+    const description = node.description || '';
+    const sourceType = node.sourceType || node.source_type || '';
+    const sourceLink = node.sourceLink || node.source_link || node.url || '';
+    const prepTime = node.prepTime || node.prep_time || node.prep || '';
+    const cookTime = node.cookTime || node.cook_time || node.cook || '';
+    const totalTime = node.totalTime || node.total_time || node.total || '';
+
+    const rawYield = node.recipeYield ?? node.yield ?? node.servings;
+    let recipeYield = 0;
+    if (typeof rawYield === 'number') recipeYield = Math.round(rawYield);
+    else if (typeof rawYield === 'string') {
+        const match = rawYield.match(/(\d+)/);
+        recipeYield = match ? Number(match[1]) : 0;
+    } else if (Array.isArray(rawYield)) {
+        const joined = rawYield.join(' ');
+        const match = joined.match(/(\d+)/);
+        recipeYield = match ? Number(match[1]) : 0;
+    }
+
+    const recipeIngredient = Array.isArray(node.recipeIngredient)
+        ? node.recipeIngredient
+        : node.recipeIngredient
+            ? [node.recipeIngredient]
+            : Array.isArray(node.ingredients)
+                ? node.ingredients
+                : node.ingredients
+                    ? [node.ingredients]
+                    : [];
+
+    let recipeInstructions = [];
+    if (node.recipeInstructions) {
+        if (Array.isArray(node.recipeInstructions)) recipeInstructions = node.recipeInstructions.map(getTextFromInstruction).filter(Boolean);
+        else if (typeof node.recipeInstructions === 'string') recipeInstructions = [node.recipeInstructions];
+        else if (node.recipeInstructions.text) recipeInstructions = [node.recipeInstructions.text];
+    }
+
+    const recipeCategory = Array.isArray(node.recipeCategory)
+        ? node.recipeCategory
+        : node.recipeCategory
+            ? [node.recipeCategory]
+            : node.keywords
+                ? typeof node.keywords === 'string'
+                    ? node.keywords.split(',').map((s) => s.trim())
+                    : node.keywords
+                : [];
+
+    const recipeCuisine = Array.isArray(node.recipeCuisine)
+        ? node.recipeCuisine
+        : node.recipeCuisine
+            ? [node.recipeCuisine]
+            : node.cuisine
+                ? Array.isArray(node.cuisine)
+                    ? node.cuisine
+                    : [node.cuisine]
+                : [];
+
+    return {
+        name,
+        description,
+        sourceType,
+        sourceLink,
+        recipeYield,
+        prepTime,
+        cookTime,
+        totalTime,
+        recipeIngredient,
+        recipeInstructions,
+        recipeCategory,
+        recipeCuisine,
+    };
+};
+
+const parseRecipeWithSchema = (node) => {
+    const normalized = normalizeRecipeNode(node);
+    const result = SchemaOrgRecipeSchema.safeParse(normalized);
+    if (!result.success) {
+        console.warn('Recipe schema validation failed', result.error, normalized);
+        return null;
+    }
+    return result.data;
 };
 
 export const parseJsonLdToRecipes = (data) => {
@@ -87,43 +173,22 @@ export const parseJsonLdToRecipes = (data) => {
                         : node.keywords
                     : [];
 
-        const recipeCuisine = Array.isArray(node.recipeCuisine)
-            ? node.recipeCuisine
-            : node.recipeCuisine
-                ? [node.recipeCuisine]
-                : node.cuisine
-                    ? Array.isArray(node.cuisine)
-                        ? node.cuisine
-                        : [node.cuisine]
-                    : [];
+        const recipe = parseRecipeWithSchema(node);
+        if (!recipe) return;
 
         const rating = node.aggregateRating && node.aggregateRating.ratingValue ? Number(node.aggregateRating.ratingValue) : (node.ratingValue ? Number(node.ratingValue) : 0);
-
-        const prep_time = parseDurationToMinutes(prepTime);
-        const cook_time = parseDurationToMinutes(cookTime);
+        const prep_time = parseDurationToMinutes(recipe.prepTime);
+        const cook_time = parseDurationToMinutes(recipe.cookTime);
 
         items.push({
             id,
-            name,
-            title: name,
-            description,
-            sourceType,
-            sourceLink,
-            recipeYield,
-            prepTime,
-            cookTime,
-            totalTime,
-            recipeIngredient: ingredients,
-            recipeInstructions: instructions,
-            recipeCategory,
-            recipeCuisine,
+            ...recipe,
             rating,
-
             image: node.image || '',
-            servings: recipeYield,
-            ingredients,
-            instructions,
-            categories: recipeCategory.map((c) => String(c).toLowerCase()),
+            servings: recipe.recipeYield,
+            ingredients: recipe.recipeIngredient,
+            instructions: recipe.recipeInstructions,
+            categories: recipe.recipeCategory.map((c) => String(c).toLowerCase()),
             commonIngredients: [],
             prep_time,
             cook_time,
@@ -172,28 +237,11 @@ export const getProperCase = (s) => {
  * Converts a raw human-readable string into a URL-safe query parameter slug.
  * Example: "Mom's Apple Pie!  " -> "moms-apple-pie"
  */
-export const nameToQueryParam = (name) => {
-    if (!name) return 'unknown';
-
-    const normalized = name
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-
-    return encodeURIComponent(normalized);
-};
-
-/**
- * Converts a URL-safe query parameter slug back into a clean, capitalized display name.
- * Example: "moms-apple-pie" -> "Moms Apple Pie"
- */
-export const queryParamToName = (param) => {
-    if (!param) return 'Unknown';
-
-    return decodeURIComponent(param)
-        .replace(/-/g, ' ')
-        .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase())
-        .trim();
+export const toSlug = (name) => {
+   return name
+    .toLowerCase()
+    .normalize('NFD')                   // decompose accented chars
+    .replace(/[\u0300-\u036f]/g, '')    // strip combining diacritics
+    .replace(/[^a-z0-9]+/g, '-')       // non-alphanumeric runs → hyphen
+    .replace(/^-+|-+$/g, '');          // trim leading/trailing hyphens
 };

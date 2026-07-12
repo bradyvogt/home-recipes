@@ -108,21 +108,11 @@ const RecipeSummary = ({ recipe }) => {
     return (
         <div className="recipe-header">
             <h2 className="recipe-title">{recipeName}</h2>
-            <Link to={`/recipe?name=${Helpers.nameToQueryParam(recipeName)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <Link to={`/recipe?name=${Helpers.toSlug(recipeName)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
                 <img src={'./icons/open_new_tab.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
             </Link>
             {servingValue ? (<IconMetric icon={ './icons/servings.svg' } label={ servingValue } />) : null}
             {Helpers.getTotalCookTime(recipe) ? (<IconMetric icon={ './icons/clock.svg' } label={ Helpers.formatTime(Helpers.getTotalCookTime(recipe)) } />) : null}
-            {categories.length > 0 && (
-              <div style={{ marginTop: '8px', fontSize: '0.9rem', color: '#4b5563' }}>
-                {categories.join(', ')}
-              </div>
-            )}
-            {cuisine.length > 0 && (
-              <div style={{ fontSize: '0.9rem', color: '#4b5563' }}>
-                Cuisine: {cuisine.join(', ')}
-              </div>
-            )}
         </div>
     );
 };

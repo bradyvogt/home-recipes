@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { queryParamToName } from './utils/helpers';
+import { toSlug } from './utils/helpers';
 import { RECIPES_URL } from './utils/supabaseClient';
 
 export default function SingleRecipe() {
@@ -19,11 +19,9 @@ export default function SingleRecipe() {
           throw new Error('No recipe parameter specified in URL.');
         }
 
-        const targetTitle = queryParamToName(rawParam).toLowerCase();
-
         if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
           const found = window.__loadedRecipes.find(
-            (r) => ((r.name || r.title || '').toLowerCase() === targetTitle)
+            (r) => toSlug(r.name || '') === rawParam
           );
           if (found) {
             setRecipe(found);
@@ -48,7 +46,7 @@ export default function SingleRecipe() {
         );
 
         if (!foundRecipe) {
-          throw new Error(`Could not find a recipe matching "${queryParamToName(rawParam)}"`);
+          throw new Error(`Could not find a recipe matching "${rawParam}"`);
         }
 
         setRecipe(foundRecipe);

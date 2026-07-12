@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { nameToQueryParam } from './utils/helpers';
+import { toSlug } from './utils/helpers';
 
 export default function AddRecipe() {
     const { session, loading: authLoading, supabase } = useAuth();
@@ -14,7 +14,7 @@ export default function AddRecipe() {
     const [url, setUrl] = useState('');
     const [freeformText, setFreeformText] = useState('');
     const [selectedFiles, setSelectedFiles] = useState([]);
-    const [isDragOver, setIsDragOver] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);na
 
     // Submitting loaders per section
     const [submittingUrl, setSubmittingUrl] = useState(false);
@@ -46,7 +46,7 @@ export default function AddRecipe() {
     );
 
     // Redirect to the new URL
-    navigate(`/recipe?name=${nameToQueryParam(recipeName)}`);
+    navigate(`/recipe?name=${toSlug(recipeName)}`);
     return true;
     };
 
