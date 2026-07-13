@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { getStoredDataSourceId } from './utils/supabaseClient';
 
 export default function Navbar() {
   const { session, loading, supabase } = useAuth();
@@ -8,7 +9,8 @@ export default function Navbar() {
 
   const reservedPaths = ['login', 'recipe', 'add-recipe', 'settings'];
   const firstPathSegment = location.pathname.split('/').filter(Boolean)[0] || '';
-  const currentDataSourceId = reservedPaths.includes(firstPathSegment) ? '' : firstPathSegment || 'recipes';
+  const storedDataSourceId = getStoredDataSourceId();
+  const currentDataSourceId = reservedPaths.includes(firstPathSegment) ? '' : firstPathSegment || storedDataSourceId || 'recipes';
   const getDataSourcePath = (suffix = '') => {
     const normalizedSuffix = suffix ? `/${suffix.replace(/^\/+/, '')}` : '';
     const basePath = currentDataSourceId ? `/${currentDataSourceId}` : '';

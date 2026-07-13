@@ -18,6 +18,47 @@ export const getRecipesUrl = (dataSourceId) => {
     return `${SUPABASE_STORAGE_URL}/${getStorageFileName(dataSourceId)}`;
 };
 
+export const STORAGE_DATA_SOURCE_KEY = 'selected-data-source';
+
+export const getStoredDataSourceId = () => {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
+    return window.localStorage.getItem(STORAGE_DATA_SOURCE_KEY) || '';
+};
+
+export const setStoredDataSourceId = (dataSourceId) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    if (!dataSourceId) {
+        window.localStorage.removeItem(STORAGE_DATA_SOURCE_KEY);
+        return;
+    }
+
+    window.localStorage.setItem(STORAGE_DATA_SOURCE_KEY, dataSourceId);
+};
+
+export const listDataSourceFiles = async () => {
+    const { data, error } = await supabase.storage.from('recipe_storage').list('', {
+        limit: 100,
+        offset: 0,
+        sortBy: { column: 'name', order: 'asc' },
+    });
+
+    if (error) {
+        throw error;
+    }
+
+    return (data || [])
+        .map((item) => item.name)
+        .filter((name) => typeof name === 'string' && name.endsWith('.json'))
+        .map((name) => name.replace(/\.json$/i, ''))
+        .filter(Boolean);
+};
+
 const SUPABASE_ANON_KEY = 'sb_publishable_KLID7d9e5MWcLeLKpr-VQA_zidMe2MZ';
 
 export const supabase = createClient(SUPABASE_PROJECT_URL, SUPABASE_ANON_KEY);
