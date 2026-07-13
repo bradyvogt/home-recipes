@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from './AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toSlug } from './utils/helpers';
+import { getStorageFileName } from './utils/supabaseClient';
 
 export default function AddRecipe() {
     const { session, loading: authLoading, supabase } = useAuth();
     const navigate = useNavigate();
+    const { dataSourceId } = useParams();
 
     // Active Tab State ('url', 'text', or 'image')
     const [activeTab, setActiveTab] = useState('url');
@@ -14,7 +16,7 @@ export default function AddRecipe() {
     const [url, setUrl] = useState('');
     const [freeformText, setFreeformText] = useState('');
     const [selectedFiles, setSelectedFiles] = useState([]);
-    const [isDragOver, setIsDragOver] = useState(false);na
+    const [isDragOver, setIsDragOver] = useState(false);
 
     // Submitting loaders per section
     const [submittingUrl, setSubmittingUrl] = useState(false);
@@ -23,31 +25,25 @@ export default function AddRecipe() {
 
     const fileInputRef = useRef(null);
 
+    const storageFileName = getStorageFileName(dataSourceId);
+
+    const getIngestFunctionUrl = (functionName) => {
+        return `${functionName}?storageFile=${encodeURIComponent(storageFileName)}`;
+    };
+
     // Helper to handle edge function responses
     const handleEdgeResult = (error, data) => {
-    if (error) {
-        alert(`Error calling edge function: ${error.message}`);
-        return false;
-    }
-    
-    alert('Recipe successfully added!');
-    
-    // Extract recipe name from function response (adjust property path based on your API)
-    const recipeName = data?.recipeName || data?.title || 'unknown';
-    
-    // Normalize the name (lowercase, replace spaces/special chars with hyphens)
-    const normalizedName = encodeURIComponent(
-        recipeName
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-        .replace(/\s+/g, '-')         // Replace spaces with hyphens
-        .replace(/-+/g, '-')          // Collapse multiple hyphens
-    );
+        if (error) {
+            alert(`Error calling edge function: ${error.message}`);
+            return false;
+        }
 
-    // Redirect to the new URL
-    navigate(`/recipe?name=${toSlug(recipeName)}`);
-    return true;
+        alert('Recipe successfully added!');
+
+        const recipeName = data?.recipeName || data?.title || 'unknown';
+        const recipePath = dataSourceId ? `/${dataSourceId}/recipe?name=${toSlug(recipeName)}` : `/recipe?name=${toSlug(recipeName)}`;
+        navigate(recipePath);
+        return true;
     };
 
     // ── Native Browser Compression Utility ──
@@ -93,8 +89,8 @@ export default function AddRecipe() {
         if (!url.trim()) return alert('Paste a URL first.');
         setSubmittingUrl(true);
         try {
-            const { error } = await supabase.functions.invoke('recipe-ingest/url', { body: { url: url.trim() } });
-            if (handleEdgeResult(error)) setUrl('');
+            const { error, data } = await supabase.functions.invoke(getIngestFunctionUrl('recipe-ingest/url'), { body: { url: url.trim(), storageFile: storageFileName } });
+            if (handleEdgeResult(error, data)) setUrl('');
         } catch (err) { alert(err.message); } finally { setSubmittingUrl(false); }
     };
 
@@ -103,8 +99,8 @@ export default function AddRecipe() {
         if (!freeformText.trim()) return alert('Write something first.');
         setSubmittingText(true);
         try {
-            const { error } = await supabase.functions.invoke('recipe-ingest/freeform-text', { body: { text: freeformText.trim() } });
-            if (handleEdgeResult(error)) setFreeformText('');
+            const { error, data } = await supabase.functions.invoke(getIngestFunctionUrl('recipe-ingest/freeform-text'), { body: { text: freeformText.trim(), storageFile: storageFileName } });
+            if (handleEdgeResult(error, data)) setFreeformText('');
         } catch (err) { alert(err.message); } finally { setSubmittingText(false); }
     };
 
@@ -117,8 +113,8 @@ export default function AddRecipe() {
             const optimizedFiles = await Promise.all(compressionPromises);
             optimizedFiles.forEach((file) => form.append('images', file));
 
-            const { error } = await supabase.functions.invoke('recipe-ingest/image', { body: form });
-            if (handleEdgeResult(error)) setSelectedFiles([]);
+            const { error, data } = await supabase.functions.invoke(getIngestFunctionUrl('recipe-ingest/image'), { body: form });
+            if (handleEdgeResult(error, data)) setSelectedFiles([]);
         } catch (err) { alert(err.message); } finally { setSubmittingImages(false); }
     };
 

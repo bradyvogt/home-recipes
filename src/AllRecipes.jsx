@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 
 import Navbar from './Navbar.jsx';
-import { RECIPES_URL } from './utils/constants.js';
-import { Link } from 'react-router-dom';
-import * as Helpers from './utils/helpers.js';
+import { getRecipesUrl } from './utils/supabaseClient';
+import { Link, useParams } from 'react-router-dom';
+import * as Helpers from './utils/helpers';
 
 const getSimilarRecipes = (recipe, all = window.__loadedRecipes || []) => {
     const normalizeIngredient = (ingredient) => {
@@ -99,16 +99,17 @@ const IconMetric = ({ icon, label }) => {
     );
 };
 
-const RecipeSummary = ({ recipe }) => {
+const RecipeSummary = ({ recipe, dataSourceId }) => {
     const recipeName = recipe.name || recipe.title || 'Recipe';
     const categories = recipe.recipeCategory || recipe.categories || [];
     const cuisine = recipe.recipeCuisine || [];
     const servingValue = recipe.recipeYield || recipe.servings || null;
+    const recipePath = dataSourceId ? `/${dataSourceId}/recipe?name=${Helpers.toSlug(recipeName)}` : `/recipe?name=${Helpers.toSlug(recipeName)}`;
 
     return (
         <div className="recipe-header">
             <h2 className="recipe-title">{recipeName}</h2>
-            <Link to={`/recipe?name=${Helpers.toSlug(recipeName)}`} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <Link to={recipePath} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
                 <img src={'./icons/open_new_tab.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
             </Link>
             {servingValue ? (<IconMetric icon={ './icons/servings.svg' } label={ servingValue } />) : null}
@@ -147,7 +148,7 @@ const CopyButton = ({ textToCopy }) => {
     );
 };
 
-const RecipeList = ({ recipes, onSimilarClick }) => {
+const RecipeList = ({ recipes, onSimilarClick, dataSourceId }) => {
 
     return (
         <div>
@@ -157,7 +158,7 @@ const RecipeList = ({ recipes, onSimilarClick }) => {
                 return (
                     <ToggleContainer
                         key={recipe.id}
-                        header={<RecipeSummary key={recipe.id} recipe={recipe} />}
+                        header={<RecipeSummary key={recipe.id} recipe={recipe} dataSourceId={dataSourceId} />}
                         details={
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
@@ -268,9 +269,10 @@ const AllRecipes = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [sortBy, setSortBy] = useState('title');
     const [sortAsc, setSortAsc] = useState(true);
+    const { dataSourceId } = useParams();
 
     useEffect(() => {
-        fetch(RECIPES_URL)
+        fetch(getRecipesUrl(dataSourceId))
             .then(res => res.json())
             .then(data => {
                 const parsed = Helpers.parseJsonLdToRecipes(data);
@@ -280,7 +282,7 @@ const AllRecipes = () => {
             .catch(err => {
                 console.error('Failed to load recipes:', err);
             });
-    }, []);
+    }, [dataSourceId]);
 
     // Get all unique categories from recipes (flattened)
     const allCategories = Array.from(new Set(recipes.flatMap(r => Array.isArray(r.categories) ? r.categories.map(c => c.toLowerCase()) : [])));
@@ -322,7 +324,7 @@ const AllRecipes = () => {
                 onSelect={setSelectedCategory}
                 recipes={recipes}
             />
-            <RecipeList recipes={filteredRecipes} onSimilarClick={handleRecipeSimilarClick} />
+            <RecipeList recipes={filteredRecipes} onSimilarClick={handleRecipeSimilarClick} dataSourceId={dataSourceId} />
             <SimilarRecipePopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} title="Similar Recipes" recipes={similarRecipes} />
         </div>
     );

@@ -1,9 +1,19 @@
-import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate for redirection if desired
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 export default function Navbar() {
   const { session, loading, supabase } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const reservedPaths = ['login', 'recipe', 'add-recipe', 'settings'];
+  const firstPathSegment = location.pathname.split('/').filter(Boolean)[0] || '';
+  const currentDataSourceId = reservedPaths.includes(firstPathSegment) ? '' : firstPathSegment || 'recipes';
+  const getDataSourcePath = (suffix = '') => {
+    const normalizedSuffix = suffix ? `/${suffix.replace(/^\/+/, '')}` : '';
+    const basePath = currentDataSourceId ? `/${currentDataSourceId}` : '';
+    return `${basePath}${normalizedSuffix}`;
+  };
 
   // Handle the async sign out process
   const handleSignOut = async () => {
@@ -12,7 +22,7 @@ export default function Navbar() {
       if (error) throw error;
       
       alert('You have successfully signed out!');
-      navigate('/'); // Optional: redirect user to home page after sign out
+      navigate(getDataSourcePath());
     } catch (error) {
       alert(`Error signing out: ${error.message}`);
     }
@@ -27,21 +37,21 @@ export default function Navbar() {
     <nav style={styles.nav}>
       {/* Left Section */}
       <div style={styles.section}>
-        <Link to="/add-recipe" style={styles.link}>
+        <Link to={getDataSourcePath('add-recipe')} style={styles.link}>
           <img src={'./icons/add_recipe.svg'} alt="icon" style={{ width: '30px', height: '30px' }} />
         </Link>
       </div>
 
       {/* Center Section */}
       <div style={{ ...styles.section, ...styles.center }}>
-        <Link to="/" style={styles.logoLink}>
+        <Link to={getDataSourcePath()} style={styles.logoLink}>
           <span style={styles.logoText}>Recipe Viewer</span>
         </Link>
       </div>
 
       {/* Right Section */}
       <div style={{ ...styles.section, ...styles.right }}>
-        <Link to="/settings" style={styles.link}>
+        <Link to={getDataSourcePath('settings')} style={styles.link}>
           <img src={'./icons/settings.svg'} alt="icon" style={{ width: '30px', height: '30px' }} />
         </Link>
 

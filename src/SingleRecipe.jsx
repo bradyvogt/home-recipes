@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { toSlug } from './utils/helpers';
-import { RECIPES_URL } from './utils/supabaseClient';
+import { getRecipesUrl } from './utils/supabaseClient';
 
 export default function SingleRecipe() {
   const [searchParams] = useSearchParams();
+  const { dataSourceId } = useParams();
   const navigate = useNavigate();
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,7 @@ export default function SingleRecipe() {
 
         if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
           const found = window.__loadedRecipes.find(
-            (r) => toSlug(r.name || '') === rawParam
+            (r) => toSlug(r.name || r.title || '') === rawParam
           );
           if (found) {
             setRecipe(found);
@@ -30,7 +31,7 @@ export default function SingleRecipe() {
           }
         }
 
-        const response = await fetch(RECIPES_URL);
+        const response = await fetch(getRecipesUrl(dataSourceId));
         if (!response.ok) throw new Error('Failed to fetch recipes from server.');
 
         const rawData = await response.json();
@@ -42,7 +43,7 @@ export default function SingleRecipe() {
         window.__loadedRecipes = parsedRecipes;
 
         const foundRecipe = parsedRecipes.find(
-          (r) => ((r.name || r.title || '').toLowerCase() === targetTitle)
+          (r) => toSlug(r.name || r.title || '') === rawParam.toLowerCase()
         );
 
         if (!foundRecipe) {
@@ -58,7 +59,7 @@ export default function SingleRecipe() {
     };
 
     loadRecipeData();
-  }, [rawParam]);
+  }, [dataSourceId, rawParam]);
 
   if (loading) {
     return (
@@ -74,7 +75,7 @@ export default function SingleRecipe() {
         <div style={styles.errorCard}>
           <h3>Error Loading Recipe</h3>
           <p>{error}</p>
-          <button onClick={() => navigate(-1)} style={styles.backButton}>
+          <button onClick={() => navigate(dataSourceId ? `/${dataSourceId}` : '/')} style={styles.backButton}>
             Go Back
           </button>
         </div>
@@ -105,7 +106,7 @@ export default function SingleRecipe() {
 
   return (
     <article style={styles.pageContainer}>
-      <button onClick={() => navigate(-1)} style={styles.textBackButton}>
+      <button onClick={() => navigate(dataSourceId ? `/${dataSourceId}` : '/')} style={styles.textBackButton}>
         &larr; Back to Recipes
       </button>
 
