@@ -136,7 +136,6 @@ export default function SingleRecipe() {
   const {
     title,
     name,
-    image,
     description,
     sourceType,
     sourceLink,
@@ -243,14 +242,6 @@ export default function SingleRecipe() {
               </a>
             )}
           </div>
-        )}
-
-        {image && (
-          <img
-            src={Array.isArray(image) ? image[0] : image}
-            alt={displayName}
-            style={styles.heroImage}
-          />
         )}
 
         {description && <p style={styles.description}>{description}</p>}
@@ -497,13 +488,6 @@ const styles = {
     color: '#2563eb',
     textDecoration: 'none',
     fontWeight: '600',
-  },
-  heroImage: {
-    width: '100%',
-    maxHeight: '400px',
-    objectFit: 'cover',
-    borderRadius: '12px',
-    marginBottom: '20px',
   },
   description: {
     fontSize: '1.125rem',
