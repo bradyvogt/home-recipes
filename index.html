@@ -5,10 +5,25 @@
     <link rel="icon" type="image/svg+xml" href="/home-recipes/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Recipe Viewer</title>
-    <script type="module" crossorigin src="/home-recipes/assets/index-Djnez9XE.js"></script>
+    <script type="module" crossorigin src="/home-recipes/assets/index-AT9pJhnh.js"></script>
     <link rel="stylesheet" crossorigin href="/home-recipes/assets/index-B6NzbNDk.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const redirectPath = params.get('p');
+
+        if (redirectPath) {
+          const repoBase = '/home-recipes';
+          const normalizedPath = redirectPath.startsWith(repoBase)
+            ? redirectPath
+            : `${repoBase}${redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`}`;
+
+          window.history.replaceState(null, '', normalizedPath);
+        }
+      })();
+    </script>
   </body>
 </html>
