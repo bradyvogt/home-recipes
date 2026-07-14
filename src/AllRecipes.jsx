@@ -272,16 +272,30 @@ const AllRecipes = () => {
     const { dataSourceId } = useParams();
 
     useEffect(() => {
-        fetch(getRecipesUrl(dataSourceId))
-            .then(res => res.json())
-            .then(data => {
-                const parsed = Helpers.parseJsonLdToRecipes(data);
-                window.__loadedRecipes = parsed;
-                setRecipes(parsed);
-            })
-            .catch(err => {
-                console.error('Failed to load recipes:', err);
-            });
+        let isMounted = true;
+
+        const fetchRecipes = () => {
+            fetch(getRecipesUrl(dataSourceId))
+                .then(res => res.json())
+                .then(data => {
+                    const parsed = Helpers.parseJsonLdToRecipes(data);
+                    window.__loadedRecipes = parsed;
+                    if (isMounted) setRecipes(parsed);
+                })
+                .catch(err => {
+                    console.error('Failed to load recipes:', err);
+                });
+        };
+
+        fetchRecipes();
+
+        const handler = () => fetchRecipes();
+        window.addEventListener('recipes:refresh', handler);
+
+        return () => {
+            isMounted = false;
+            window.removeEventListener('recipes:refresh', handler);
+        };
     }, [dataSourceId]);
 
     // Get all unique categories from recipes (flattened)

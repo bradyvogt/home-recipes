@@ -34,13 +34,26 @@ export default function AddRecipe() {
     // Helper to handle edge function responses
     const handleEdgeResult = (error, data) => {
         if (error) {
-            alert(`Error calling edge function: ${error.message}`);
+            let displayMessage = error.message;
+
+            try {
+                // Attempt to parse nested JSON error from the edge function
+                const nestedError = JSON.parse(error.message);
+                displayMessage = nestedError.error?.message || error.message;
+            } catch (e) {
+                // Fallback to original message if not valid JSON
+            }
+
+            alert(`Error: ${displayMessage}`);
             return false;
         }
 
         alert('Recipe successfully added!');
 
-        const recipeName = data?.recipeName || data?.title || 'unknown';
+        // Notify the app that recipes should be refetched (e.g., AllRecipes listens for this)
+        try { window.dispatchEvent(new Event('recipes:refresh')); } catch (e) { /* ignore in non-browser env */ }
+
+        const recipeName = data?.name || data?.title || 'unknown';
         const recipePath = dataSourceId ? `/${dataSourceId}/recipe?name=${toSlug(recipeName)}` : `/recipe?name=${toSlug(recipeName)}`;
         navigate(recipePath);
         return true;
