@@ -23,6 +23,7 @@ const App = () => {
 
             <Route path="/:dataSourceId">
                 <Route index element={<AllRecipes />} />
+                <Route path="recipes" element={<AllRecipes />} />
                 <Route path="recipe" element={<SingleRecipe />} />
                 <Route path="add-recipe" element={<AddRecipe />} />
                 <Route path="settings" element={<SettingsPage />} />
