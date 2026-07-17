@@ -274,8 +274,8 @@ const AllRecipes = () => {
     useEffect(() => {
         let isMounted = true;
 
-        const fetchRecipes = () => {
-            fetch(getRecipesUrl(dataSourceId))
+        const fetchRecipes = (options = {}) => {
+            fetch(getRecipesUrl(dataSourceId, options))
                 .then(res => res.json())
                 .then(data => {
                     const parsed = Helpers.parseJsonLdToRecipes(data);
@@ -287,9 +287,9 @@ const AllRecipes = () => {
                 });
         };
 
-        fetchRecipes();
+        fetchRecipes({ bustCache: true });
 
-        const handler = () => fetchRecipes();
+        const handler = () => fetchRecipes({ bustCache: true });
         window.addEventListener('recipes:refresh', handler);
 
         return () => {

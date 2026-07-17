@@ -11,11 +11,27 @@ export const getStorageFileName = (dataSourceId) => {
     return `${dataSourceId}.json`;
 };
 
-export const getRecipesUrl = (dataSourceId) => {
-    if (!dataSourceId) {
-        return DEFAULT_RECIPES_URL;
+export const getRecipesUrl = (dataSourceId, options = {}) => {
+    const baseUrl = !dataSourceId
+        ? DEFAULT_RECIPES_URL
+        : `${SUPABASE_STORAGE_URL}/${getStorageFileName(dataSourceId)}`;
+
+    if (!options?.bustCache) {
+        return baseUrl;
     }
-    return `${SUPABASE_STORAGE_URL}/${getStorageFileName(dataSourceId)}`;
+
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}t=${Date.now()}`;
+};
+
+export const fetchRecipesData = async (dataSourceId, options = {}) => {
+    const response = await fetch(getRecipesUrl(dataSourceId, options));
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch recipes from server.');
+    }
+
+    return response.json();
 };
 
 export const STORAGE_DATA_SOURCE_KEY = 'selected-data-source';

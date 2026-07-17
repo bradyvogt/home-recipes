@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { toSlug } from './utils/helpers';
-import { getRecipesUrl, getStorageFileName } from './utils/supabaseClient';
+import { fetchRecipesData, getRecipesUrl, getStorageFileName } from './utils/supabaseClient';
 import { useAuth } from './AuthContext';
 
 export default function SingleRecipe() {
@@ -56,6 +56,21 @@ export default function SingleRecipe() {
     recipeInstructions: normalizeEditField(recipeData.recipeInstructions || recipeData.instructions),
   });
 
+  const refreshRecipesCache = async () => {
+    try {
+      const rawData = await fetchRecipesData(dataSourceId, { bustCache: true });
+      const parsedRecipes = window.Helpers
+        ? window.Helpers.parseJsonLdToRecipes(rawData)
+        : rawData;
+
+      window.__loadedRecipes = parsedRecipes;
+      return parsedRecipes;
+    } catch (error) {
+      console.error('Failed to refresh recipes cache:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const loadRecipeData = async () => {
       try {
@@ -74,10 +89,7 @@ export default function SingleRecipe() {
           }
         }
 
-        const response = await fetch(getRecipesUrl(dataSourceId));
-        if (!response.ok) throw new Error('Failed to fetch recipes from server.');
-
-        const rawData = await response.json();
+        const rawData = await fetchRecipesData(dataSourceId);
 
         const parsedRecipes = window.Helpers
           ? window.Helpers.parseJsonLdToRecipes(rawData)
@@ -194,16 +206,25 @@ export default function SingleRecipe() {
         throw error;
       }
 
+      await refreshRecipesCache();
+
       const updatedRecipe = data || { ...recipe, ...payload };
-      setRecipe(updatedRecipe);
-      setEditValues(initializeEditValues(updatedRecipe));
+      const refreshedRecipes = window.__loadedRecipes && Array.isArray(window.__loadedRecipes)
+        ? window.__loadedRecipes
+        : null;
+      const refreshedRecipe = refreshedRecipes?.find((item) => toSlug(item.name || item.title || '') === recipeSlug) || updatedRecipe;
+
+      setRecipe(refreshedRecipe);
+      setEditValues(initializeEditValues(refreshedRecipe));
       setEditMessage('Recipe saved successfully.');
       setIsEditing(false);
+
+      try { window.dispatchEvent(new Event('recipes:refresh')); } catch (eventError) { /* ignore in non-browser env */ }
 
       if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
         window.__loadedRecipes = window.__loadedRecipes.map((item) => {
           const itemSlug = toSlug(item.name || item.title || '');
-          return itemSlug === recipeSlug ? updatedRecipe : item;
+          return itemSlug === recipeSlug ? refreshedRecipe : item;
         });
       }
     } catch (err) {

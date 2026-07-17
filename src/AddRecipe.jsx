@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toSlug } from './utils/helpers';
-import { getStorageFileName } from './utils/supabaseClient';
+import { fetchRecipesData, getStorageFileName } from './utils/supabaseClient';
 
 export default function AddRecipe() {
     const { session, loading: authLoading, supabase } = useAuth();
@@ -31,8 +31,20 @@ export default function AddRecipe() {
         return `${functionName}?storageFile=${encodeURIComponent(storageFileName)}`;
     };
 
+    const refreshRecipesCache = async () => {
+        try {
+            const rawData = await fetchRecipesData(dataSourceId, { bustCache: true });
+            const parsedRecipes = window.Helpers ? window.Helpers.parseJsonLdToRecipes(rawData) : rawData;
+            window.__loadedRecipes = parsedRecipes;
+            return parsedRecipes;
+        } catch (error) {
+            console.error('Failed to refresh recipes cache:', error);
+            return null;
+        }
+    };
+
     // Helper to handle edge function responses
-    const handleEdgeResult = (error, data) => {
+    const handleEdgeResult = async (error, data) => {
         if (error) {
             let displayMessage = error.message;
 
@@ -50,10 +62,12 @@ export default function AddRecipe() {
 
         alert('Recipe successfully added!');
 
+        await refreshRecipesCache();
+
         // Notify the app that recipes should be refetched (e.g., AllRecipes listens for this)
         try { window.dispatchEvent(new Event('recipes:refresh')); } catch (e) { /* ignore in non-browser env */ }
 
-        const recipeName = data?.name || data?.title || 'unknown';
+        const recipeName = data?.recipe?.name || 'unknown';
         const recipePath = dataSourceId ? `/${dataSourceId}/recipe?name=${toSlug(recipeName)}` : `/recipe?name=${toSlug(recipeName)}`;
         navigate(recipePath);
         return true;
@@ -103,7 +117,7 @@ export default function AddRecipe() {
         setSubmittingUrl(true);
         try {
             const { error, data } = await supabase.functions.invoke(getIngestFunctionUrl('recipe-ingest/url'), { body: { url: url.trim(), storageFile: storageFileName } });
-            if (handleEdgeResult(error, data)) setUrl('');
+            if (await handleEdgeResult(error, data)) setUrl('');
         } catch (err) { alert(err.message); } finally { setSubmittingUrl(false); }
     };
 
@@ -113,7 +127,7 @@ export default function AddRecipe() {
         setSubmittingText(true);
         try {
             const { error, data } = await supabase.functions.invoke(getIngestFunctionUrl('recipe-ingest/freeform-text'), { body: { text: freeformText.trim(), storageFile: storageFileName } });
-            if (handleEdgeResult(error, data)) setFreeformText('');
+            if (await handleEdgeResult(error, data)) setFreeformText('');
         } catch (err) { alert(err.message); } finally { setSubmittingText(false); }
     };
 
@@ -127,7 +141,7 @@ export default function AddRecipe() {
             optimizedFiles.forEach((file) => form.append('images', file));
 
             const { error, data } = await supabase.functions.invoke(getIngestFunctionUrl('recipe-ingest/image'), { body: form });
-            if (handleEdgeResult(error, data)) setSelectedFiles([]);
+            if (await handleEdgeResult(error, data)) setSelectedFiles([]);
         } catch (err) { alert(err.message); } finally { setSubmittingImages(false); }
     };
 
