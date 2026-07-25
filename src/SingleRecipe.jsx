@@ -30,6 +30,11 @@ export default function SingleRecipe() {
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState(null);
   const [editMessage, setEditMessage] = useState(null);
+  const [freeformText, setFreeformText] = useState('');
+  const [freeformSaving, setFreeformSaving] = useState(false);
+  const [freeformError, setFreeformError] = useState(null);
+  const [freeformMessage, setFreeformMessage] = useState(null);
+  const [isFreeformEditorOpen, setIsFreeformEditorOpen] = useState(false);
   const [shareMessage, setShareMessage] = useState(null);
 
   const rawParam = searchParams.get('name');
@@ -144,6 +149,9 @@ export default function SingleRecipe() {
   useEffect(() => {
     if (recipe) {
       setEditValues(initializeEditValues(recipe));
+      setFreeformText('');
+      setFreeformError(null);
+      setFreeformMessage(null);
     }
   }, [recipe]);
 
@@ -223,7 +231,64 @@ export default function SingleRecipe() {
     }
   };
 
+  const handleToggleFreeformEditor = () => {
+    setIsFreeformEditorOpen((current) => !current);
+    setIsEditing(false);
+    setFreeformError(null);
+    setFreeformMessage(null);
+  };
+
   const getArrayFromTextarea = (value) => value.split('\n').map((line) => line.trim()).filter(Boolean);
+
+  const handleSaveFreeformEdit = async () => {
+    setFreeformError(null);
+    setFreeformMessage(null);
+    setFreeformSaving(true);
+
+    try {
+      if (!recipeSlug) throw new Error('Unable to determine recipe identifier.');
+
+      const text = freeformText.trim();
+      if (!text) throw new Error('Write recipe directions first.');
+
+      const functionName = `recipe-ingest/freeform-text/${recipeSlug}?storageFile=${encodeURIComponent(storageFileName)}`;
+      const { error, data } = await supabase.functions.invoke(functionName, {
+        method: 'PUT',
+        body: { text, storageFile: storageFileName },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await refreshRecipesCache();
+
+      const updatedRecipe = data?.recipe || data || recipe;
+      const refreshedRecipes = window.__loadedRecipes && Array.isArray(window.__loadedRecipes)
+        ? window.__loadedRecipes
+        : null;
+      const refreshedRecipe = refreshedRecipes?.find((item) => toSlug(item.name || item.title || '') === recipeSlug) || updatedRecipe;
+
+      setRecipe(refreshedRecipe);
+      setEditValues(initializeEditValues(refreshedRecipe));
+      setFreeformMessage('Recipe updated from directions.');
+      setIsFreeformEditorOpen(false);
+      setFreeformText('');
+
+      try { window.dispatchEvent(new Event('recipes:refresh')); } catch (eventError) { /* ignore in non-browser env */ }
+
+      if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
+        window.__loadedRecipes = window.__loadedRecipes.map((item) => {
+          const itemSlug = toSlug(item.name || item.title || '');
+          return itemSlug === recipeSlug ? refreshedRecipe : item;
+        });
+      }
+    } catch (err) {
+      setFreeformError(err?.message || 'Unable to save directions edit.');
+    } finally {
+      setFreeformSaving(false);
+    }
+  };
 
   const handleSaveEdit = async () => {
     setEditError(null);
@@ -330,10 +395,21 @@ export default function SingleRecipe() {
         ) : session ? (
           <>
             <button
-              onClick={() => setIsEditing((current) => !current)}
+              onClick={() => {
+                setIsEditing((current) => !current);
+                setIsFreeformEditorOpen(false);
+                setFreeformError(null);
+                setFreeformMessage(null);
+              }}
               style={styles.editButton}
             >
               {isEditing ? 'Cancel edit' : 'Edit recipe'}
+            </button>
+            <button
+              onClick={handleToggleFreeformEditor}
+              style={{ ...styles.editButton, backgroundColor: '#f59e0b' }}
+            >
+              {isFreeformEditorOpen ? 'Cancel directions edit' : 'Edit with Directions'}
             </button>
             {isEditing && (
               <button
@@ -358,6 +434,39 @@ export default function SingleRecipe() {
       {shareMessage && <div style={styles.shareMessage}>{shareMessage}</div>}
       {editError && <div style={styles.errorCard}><p>{editError}</p></div>}
       {editMessage && <div style={styles.successCard}><p>{editMessage}</p></div>}
+      {freeformError && <div style={styles.errorCard}><p>{freeformError}</p></div>}
+      {freeformMessage && <div style={styles.successCard}><p>{freeformMessage}</p></div>}
+
+      {isFreeformEditorOpen && (
+        <section style={styles.editForm} className="single-recipe-card">
+          <h2 style={styles.sectionTitle}>Edit Recipe with Directions</h2>
+          <div style={styles.fieldRow}>
+            <label style={styles.fieldLabel}>Recipe directions</label>
+            <textarea
+              value={freeformText}
+              onChange={(e) => setFreeformText(e.target.value)}
+              style={styles.fieldTextarea}
+              rows={10}
+              placeholder="Paste or type recipe directions here..."
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={handleSaveFreeformEdit}
+              disabled={freeformSaving}
+              style={styles.saveButton}
+            >
+              {freeformSaving ? 'Saving...' : 'Save directions'}
+            </button>
+            <button
+              onClick={handleToggleFreeformEditor}
+              style={{ ...styles.editButton, backgroundColor: '#ef4444' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </section>
+      )}
 
       {isEditing && (
         <section style={styles.editForm} className="single-recipe-card">
