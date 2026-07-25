@@ -5,67 +5,7 @@ import { getRecipesUrl } from './utils/supabaseClient';
 import { Link, useParams } from 'react-router-dom';
 import * as Helpers from './utils/helpers';
 
-const getSimilarRecipes = (recipe, all = window.__loadedRecipes || []) => {
-    const normalizeIngredient = (ingredient) => {
-        const value = typeof ingredient === 'string' ? ingredient : Helpers.formatIngredient(ingredient);
-        return value.toLowerCase();
-    };
-
-    const baseIngredients = new Set((recipe.recipeIngredient || recipe.ingredients || []).map(normalizeIngredient));
-    const scored = all.map((r) => {
-        if (r.id === recipe.id) return null;
-        const recipeIngredients = new Set((r.recipeIngredient || r.ingredients || []).map(normalizeIngredient));
-        let common = 0;
-        baseIngredients.forEach((item) => { if (recipeIngredients.has(item)) common++; });
-        return {
-            recipe: r,
-            score: common,
-            commonIngredients: [...baseIngredients].filter((item) => recipeIngredients.has(item)),
-        };
-    }).filter(Boolean).sort((a, b) => b.score - a.score);
-
-    return scored.slice(0, 10).map((s) => ({ ...s.recipe, commonIngredients: s.commonIngredients }));
-};
-
 window.__loadedRecipes = [];
-
-const SimilarRecipePopup = ({ isOpen, onClose, title, recipes }) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="modal show d-block similar-popup" tabIndex="-1" role="dialog">
-          <div className="modal-dialog" role="document">
-            <div className="modal-content">
-              <div className="modal-header" style={{background:'#246231',color:'#fff'}}>
-                <h5 className="modal-title">{title}</h5>
-                <button type="button" className="btn-close" style={{color:'#fff',fontWeight:'bold'}} onClick={onClose}>×</button>
-              </div>
-              <div className="modal-body" style={{background:'#ecf8ef'}}>
-                <ul>
-                  {recipes.map((recipe) => (
-                    <li key={recipe.id} style={{background:'#b6e2c6',margin:'10px 0',borderRadius:'6px',padding:'10px'}}>
-                      <div className="row">
-                        <div className="col-xs-8 text-left">
-                          <p style={{margin:0,fontWeight:'bold',color:'#246231'}}>{recipe.name || recipe.title}</p>
-                        </div>
-                        <div className="col-xs-4 text-right">
-                          <p style={{margin:0,color:'#246231'}}>Common Ingredients: {recipe.commonIngredients.join(', ')}</p>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="modal-footer" style={{background:'#ecf8ef'}}>
-                <button type="button" className="btn btn-similar-close" style={{background:'#246231',color:'#fff',border:'none',borderRadius:'4px',padding:'6px 18px'}} onClick={onClose}>
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-    );
-};
 
 const ToggleContainer = ({ header, details }) => {
     const [isVisible, setIsVisible] = useState(false);
@@ -110,7 +50,7 @@ const RecipeSummary = ({ recipe, dataSourceId }) => {
         <div className="recipe-header">
             <h2 className="recipe-title">{recipeName}</h2>
             <Link to={recipePath} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                <img src={'./icons/open_new_tab.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
+                <img src={'./icons/recipe_details.svg'} alt="icon" style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
             </Link>
             {servingValue ? (<IconMetric icon={ './icons/servings.svg' } label={ servingValue } />) : null}
             {Helpers.getTotalCookTime(recipe) ? (<IconMetric icon={ './icons/clock.svg' } label={ Helpers.formatTime(Helpers.getTotalCookTime(recipe)) } />) : null}
@@ -148,7 +88,7 @@ const CopyButton = ({ textToCopy }) => {
     );
 };
 
-const RecipeList = ({ recipes, onSimilarClick, dataSourceId }) => {
+const RecipeList = ({ recipes, dataSourceId }) => {
 
     return (
         <div>
@@ -168,9 +108,6 @@ const RecipeList = ({ recipes, onSimilarClick, dataSourceId }) => {
                                     {recipe.cook_time > 0 && (
                                         <IconMetric icon={'./icons/cook_time.svg'} label={Helpers.formatTime(recipe.cook_time)} />
                                     )}
-                                    <button className="btn btn-similar" onClick={() => onSimilarClick(recipe)}>
-                                        <span style={{display:'inline-block',verticalAlign:'middle',marginRight:'6px'}}>&#128279;</span> <span>Similar</span>
-                                    </button>
                                 </div>
 
                                 {ingredients.length > 0 && (
@@ -264,7 +201,6 @@ const PillBoxCategorySelector = ({ categories, selectedCategory, onSelect, recip
 const AllRecipes = () => {
     const [recipes, setRecipes] = useState([]);
     const [isPopupOpen, setIsPopupOpen] = useState(false);
-    const [similarRecipes, setSimilarRecipes] = useState([]);
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [sortBy, setSortBy] = useState('title');
@@ -323,12 +259,6 @@ const AllRecipes = () => {
         return 0;
     });
 
-    // When a recipe is clicked, display a popup with related recipes
-    const handleRecipeSimilarClick = (recipe) => {
-        setSimilarRecipes(getSimilarRecipes(recipe, recipes));
-        setIsPopupOpen(true);
-    };
-
     return (
         <div>
             <SearchBar searchValue={search} onSearchChange={setSearch} />
@@ -338,8 +268,7 @@ const AllRecipes = () => {
                 onSelect={setSelectedCategory}
                 recipes={recipes}
             />
-            <RecipeList recipes={filteredRecipes} onSimilarClick={handleRecipeSimilarClick} dataSourceId={dataSourceId} />
-            <SimilarRecipePopup isOpen={isPopupOpen} onClose={() => setIsPopupOpen(false)} title="Similar Recipes" recipes={similarRecipes} />
+            <RecipeList recipes={filteredRecipes} dataSourceId={dataSourceId} />
         </div>
     );
 }

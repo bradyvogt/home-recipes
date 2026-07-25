@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import { toSlug } from './utils/helpers';
+import { toSlug, formatTime, parseDurationToMinutes } from './utils/helpers';
 import { fetchRecipesData, getRecipesUrl, getStorageFileName } from './utils/supabaseClient';
 import { useAuth } from './AuthContext';
 
@@ -30,9 +30,33 @@ export default function SingleRecipe() {
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState(null);
   const [editMessage, setEditMessage] = useState(null);
+  const [shareMessage, setShareMessage] = useState(null);
 
   const rawParam = searchParams.get('name');
   const storageFileName = getStorageFileName(dataSourceId);
+
+  const getMinutesFromTimeValue = (value) => {
+    if (value === null || value === undefined || value === '') return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return 0;
+      if (/^\d+$/.test(trimmed)) return Number(trimmed);
+      return parseDurationToMinutes(trimmed);
+    }
+    return 0;
+  };
+
+  const serializeTimeValue = (value) => {
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes) || minutes < 0) return '';
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    let iso = 'PT';
+    if (hours) iso += `${hours}H`;
+    if (remainingMinutes) iso += `${remainingMinutes}M`;
+    return iso || 'PT0M';
+  };
 
   const normalizeEditField = (field) => {
     if (!field) return '';
@@ -47,9 +71,9 @@ export default function SingleRecipe() {
     sourceType: recipeData.sourceType || recipeData.source_type || '',
     sourceLink: recipeData.sourceLink || recipeData.source_link || recipeData.url || '',
     recipeYield: recipeData.recipeYield || recipeData.servings || '',
-    prepTime: recipeData.prepTime || recipeData.prep_time || '',
-    cookTime: recipeData.cookTime || recipeData.cook_time || '',
-    totalTime: recipeData.totalTime || recipeData.total_time || '',
+    prepTime: getMinutesFromTimeValue(recipeData.prepTime || recipeData.prep_time || recipeData.prep || ''),
+    cookTime: getMinutesFromTimeValue(recipeData.cookTime || recipeData.cook_time || recipeData.cook || ''),
+    totalTime: getMinutesFromTimeValue(recipeData.totalTime || recipeData.total_time || recipeData.total || ''),
     recipeCategory: (Array.isArray(recipeData.recipeCategory) ? recipeData.recipeCategory : recipeData.categories || []).filter(Boolean).join(', '),
     recipeCuisine: (Array.isArray(recipeData.recipeCuisine) ? recipeData.recipeCuisine : recipeData.cuisine || []).filter(Boolean).join(', '),
     recipeIngredient: normalizeEditField(recipeData.recipeIngredient || recipeData.ingredients),
@@ -164,11 +188,39 @@ export default function SingleRecipe() {
 
   const displayName = name || title || 'Untitled Recipe';
   const servings = recipeYield || recipe.servings || 0;
+  const prepMinutes = getMinutesFromTimeValue(prepTime);
+  const cookMinutes = getMinutesFromTimeValue(cookTime);
+  const totalMinutes = getMinutesFromTimeValue(totalTime);
 
   const recipeSlug = rawParam || toSlug(recipe?.name || recipe?.title || '');
 
   const handleEditChange = (field) => (event) => {
-    setEditValues((prev) => ({ ...prev, [field]: event.target.value }));
+    const rawValue = event.target.value;
+    if (field === 'prepTime' || field === 'cookTime' || field === 'totalTime') {
+      setEditValues((prev) => ({
+        ...prev,
+        [field]: rawValue === '' ? '' : Number(rawValue),
+      }));
+      return;
+    }
+
+    setEditValues((prev) => ({ ...prev, [field]: rawValue }));
+  };
+
+  const handleShareRecipe = async () => {
+    const recipeUrl = window.location.href;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(recipeUrl);
+        setShareMessage('Recipe link copied to clipboard.');
+        return;
+      }
+
+      throw new Error('Clipboard access is unavailable in this browser.');
+    } catch (err) {
+      setShareMessage(`Unable to copy automatically. Please copy this link manually: ${recipeUrl}`);
+    }
   };
 
   const getArrayFromTextarea = (value) => value.split('\n').map((line) => line.trim()).filter(Boolean);
@@ -187,9 +239,9 @@ export default function SingleRecipe() {
         sourceType: editValues.sourceType,
         sourceLink: editValues.sourceLink,
         recipeYield: editValues.recipeYield ? Number(editValues.recipeYield) : undefined,
-        prepTime: editValues.prepTime,
-        cookTime: editValues.cookTime,
-        totalTime: editValues.totalTime,
+        prepTime: serializeTimeValue(editValues.prepTime),
+        cookTime: serializeTimeValue(editValues.cookTime),
+        totalTime: serializeTimeValue(editValues.totalTime),
         recipeCategory: getArrayFromTextarea(editValues.recipeCategory),
         recipeCuisine: getArrayFromTextarea(editValues.recipeCuisine),
         recipeIngredient: getArrayFromTextarea(editValues.recipeIngredient),
@@ -235,12 +287,12 @@ export default function SingleRecipe() {
   };
 
   return (
-    <article style={styles.pageContainer}>
+    <article style={styles.pageContainer} className="recipes-container single-recipe-page">
       <button onClick={() => navigate(dataSourceId ? `/${dataSourceId}` : '/')} style={styles.textBackButton}>
         &larr; Back to Recipes
       </button>
 
-      <header style={styles.header}>
+      <header style={styles.header} className="single-recipe-header">
         <h1 style={styles.title}>{displayName}</h1>
 
         {rating ? (
@@ -269,6 +321,10 @@ export default function SingleRecipe() {
       </header>
 
       <section style={styles.actionRow}>
+        <button onClick={handleShareRecipe} style={styles.shareButton}>
+          Copy link
+        </button>
+
         {authLoading ? (
           <span style={styles.sectionMessage}>Checking login status...</span>
         ) : session ? (
@@ -299,11 +355,12 @@ export default function SingleRecipe() {
         )}
       </section>
 
+      {shareMessage && <div style={styles.shareMessage}>{shareMessage}</div>}
       {editError && <div style={styles.errorCard}><p>{editError}</p></div>}
       {editMessage && <div style={styles.successCard}><p>{editMessage}</p></div>}
 
       {isEditing && (
-        <section style={styles.editForm}>
+        <section style={styles.editForm} className="single-recipe-card">
           <h2 style={styles.sectionTitle}>Edit Recipe</h2>
           <div style={styles.fieldRow}>
             <label style={styles.fieldLabel}>Title</label>
@@ -328,15 +385,15 @@ export default function SingleRecipe() {
             </div>
             <div style={styles.fieldRowSmall}>
               <label style={styles.fieldLabel}>Prep time</label>
-              <input value={editValues.prepTime} onChange={handleEditChange('prepTime')} style={styles.fieldInput} />
+              <input type="number" min="0" step="1" value={editValues.prepTime} onChange={handleEditChange('prepTime')} style={styles.fieldInput} />
             </div>
             <div style={styles.fieldRowSmall}>
               <label style={styles.fieldLabel}>Cook time</label>
-              <input value={editValues.cookTime} onChange={handleEditChange('cookTime')} style={styles.fieldInput} />
+              <input type="number" min="0" step="1" value={editValues.cookTime} onChange={handleEditChange('cookTime')} style={styles.fieldInput} />
             </div>
             <div style={styles.fieldRowSmall}>
               <label style={styles.fieldLabel}>Total time</label>
-              <input value={editValues.totalTime} onChange={handleEditChange('totalTime')} style={styles.fieldInput} />
+              <input type="number" min="0" step="1" value={editValues.totalTime} onChange={handleEditChange('totalTime')} style={styles.fieldInput} />
             </div>
           </div>
           <div style={styles.fieldRow}>
@@ -358,30 +415,30 @@ export default function SingleRecipe() {
         </section>
       )}
 
-      {(servings || prepTime || cookTime || totalTime || recipeCategory.length || recipeCuisine.length) && (
-        <section style={styles.metaGrid}>
+      {(servings || prepMinutes || cookMinutes || totalMinutes || recipeCategory.length || recipeCuisine.length) && (
+        <section style={styles.metaGrid} className="single-recipe-card">
           {servings ? (
             <div style={styles.metaItem}>
               <span style={styles.metaLabel}>Servings</span>
               <span style={styles.metaValue}>{servings}</span>
             </div>
           ) : null}
-          {prepTime ? (
+          {prepMinutes ? (
             <div style={styles.metaItem}>
               <span style={styles.metaLabel}>Prep Time</span>
-              <span style={styles.metaValue}>{prepTime}</span>
+              <span style={styles.metaValue}>{formatTime(prepMinutes)}</span>
             </div>
           ) : null}
-          {cookTime ? (
+          {cookMinutes ? (
             <div style={styles.metaItem}>
               <span style={styles.metaLabel}>Cook Time</span>
-              <span style={styles.metaValue}>{cookTime}</span>
+              <span style={styles.metaValue}>{formatTime(cookMinutes)}</span>
             </div>
           ) : null}
-          {totalTime ? (
+          {totalMinutes ? (
             <div style={styles.metaItem}>
               <span style={styles.metaLabel}>Total Time</span>
-              <span style={styles.metaValue}>{totalTime}</span>
+              <span style={styles.metaValue}>{formatTime(totalMinutes)}</span>
             </div>
           ) : null}
           {recipeCategory.length ? (
@@ -400,7 +457,7 @@ export default function SingleRecipe() {
       )}
 
       <div style={styles.contentLayout}>
-        <section style={styles.sectionCard}>
+        <section style={styles.sectionCard} className="single-recipe-card">
           <h2 style={styles.sectionTitle}>Ingredients</h2>
           <ul style={styles.ingredientList}>
             {recipeIngredient.map((ingredient, idx) => (
@@ -431,12 +488,15 @@ export default function SingleRecipe() {
 
 const styles = {
   pageContainer: {
-    maxWidth: '800px',
-    margin: '0 auto',
-    padding: '30px 20px',
+    maxWidth: '900px',
+    margin: '24px auto',
+    padding: '24px 28px',
     fontFamily: 'system-ui, -apple-system, sans-serif',
     color: '#1f2937',
     lineHeight: '1.6',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)',
   },
   centerContainer: {
     display: 'flex',
@@ -453,14 +513,15 @@ const styles = {
     maxWidth: '400px',
   },
   textBackButton: {
-    background: 'none',
-    border: 'none',
-    color: '#2563eb',
+    backgroundColor: '#ecf8ef',
+    border: '1px solid #cfe5d6',
+    color: '#246231',
     cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500',
-    padding: '0',
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    padding: '8px 14px',
     marginBottom: '20px',
+    borderRadius: '999px',
   },
   backButton: {
     backgroundColor: '#ef4444',
@@ -472,10 +533,14 @@ const styles = {
     marginTop: '15px',
   },
   header: {
-    marginBottom: '30px',
+    marginBottom: '24px',
+    backgroundColor: '#ecf8ef',
+    border: '1px solid #d8e8db',
+    borderRadius: '12px',
+    padding: '20px 24px',
   },
   title: {
-    fontSize: '2.5rem',
+    fontSize: '2rem',
     fontWeight: '800',
     margin: '0 0 10px 0',
     color: '#111827',
@@ -518,11 +583,12 @@ const styles = {
   metaGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-    gap: '20px',
-    backgroundColor: '#f3f4f6',
-    padding: '15px 20px',
-    borderRadius: '8px',
-    marginBottom: '30px',
+    gap: '16px',
+    backgroundColor: '#ecf8ef',
+    border: '1px solid #d8e8db',
+    padding: '18px 20px',
+    borderRadius: '12px',
+    marginBottom: '24px',
   },
   metaItem: {
     display: 'flex',
@@ -544,6 +610,15 @@ const styles = {
   sectionMessage: {
     color: '#6b7280',
     fontSize: '0.95rem',
+  },
+  shareButton: {
+    backgroundColor: '#0f766e',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '10px 18px',
+    cursor: 'pointer',
+    fontWeight: '700',
   },
   editButton: {
     backgroundColor: '#2563eb',
@@ -570,6 +645,15 @@ const styles = {
     backgroundColor: '#ecfdf5',
     borderRadius: '8px',
     marginBottom: '20px',
+  },
+  shareMessage: {
+    padding: '12px 14px',
+    borderRadius: '8px',
+    backgroundColor: '#ecfdf5',
+    border: '1px solid #a7f3d0',
+    color: '#065f46',
+    marginBottom: '20px',
+    fontWeight: '600',
   },
   fieldRow: {
     display: 'flex',
@@ -608,11 +692,12 @@ const styles = {
     resize: 'vertical',
   },
   editForm: {
-    marginBottom: '30px',
+    marginBottom: '24px',
     padding: '20px',
-    border: '1px solid #e5e7eb',
+    border: '1px solid #dcefe0',
     borderRadius: '12px',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f9fcfa',
+    boxShadow: '0 2px 6px rgba(36, 98, 49, 0.06)',
   },
   metaValue: {
     fontSize: '1rem',
@@ -625,10 +710,11 @@ const styles = {
     gap: '30px',
   },
   sectionCard: {
-    backgroundColor: '#ffffff',
-    border: '1px solid #e5e7eb',
-    padding: '25px',
-    borderRadius: '8px',
+    backgroundColor: '#f9fcfa',
+    border: '1px solid #dcefe0',
+    padding: '22px 24px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 6px rgba(36, 98, 49, 0.06)',
   },
   sectionTitle: {
     fontSize: '1.5rem',
@@ -644,8 +730,8 @@ const styles = {
     margin: 0,
   },
   ingredientItem: {
-    padding: '10px 0',
-    borderBottom: '1px solid #f3f4f6',
+    padding: '12px 0',
+    borderBottom: '1px solid #eef4ee',
   },
   checkboxLabel: {
     display: 'flex',
@@ -664,6 +750,7 @@ const styles = {
   instructionItem: {
     paddingBottom: '15px',
     color: '#374151',
+    borderBottom: '1px solid #eef4ee',
   },
   spinner: {
     fontSize: '1.2rem',
