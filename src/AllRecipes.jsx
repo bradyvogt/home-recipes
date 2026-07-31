@@ -40,10 +40,10 @@ const IconMetric = ({ icon, label }) => {
 };
 
 const RecipeSummary = ({ recipe, dataSourceId }) => {
-    const recipeName = recipe.name || recipe.title || 'Recipe';
-    const categories = recipe.recipeCategory || recipe.categories || [];
+    const recipeName = Helpers.getRecipeDisplayName(recipe) || 'Recipe';
+    const categories = Helpers.getRecipeCategories(recipe);
     const cuisine = recipe.recipeCuisine || [];
-    const servingValue = recipe.recipeYield || recipe.servings || null;
+    const servingValue = Helpers.getRecipeServings(recipe) || null;
     const recipePath = dataSourceId ? `/${dataSourceId}/recipe?name=${Helpers.toSlug(recipeName)}` : `/recipe?name=${Helpers.toSlug(recipeName)}`;
 
     return (
@@ -93,8 +93,8 @@ const RecipeList = ({ recipes, dataSourceId }) => {
     return (
         <div>
             {recipes.map((recipe) => {
-                const ingredients = recipe.recipeIngredient || recipe.ingredients || [];
-                const instructions = recipe.recipeInstructions || recipe.instructions || [];
+                const ingredients = Helpers.getRecipeIngredients(recipe);
+                const instructions = Helpers.getRecipeInstructions(recipe);
                 return (
                     <ToggleContainer
                         key={recipe.id}
@@ -159,8 +159,9 @@ const PillBoxCategorySelector = ({ categories, selectedCategory, onSelect, recip
     // Count recipes per category
     const categoryCounts = {};
     recipes.forEach(r => {
-        (r.categories || []).forEach(cat => {
-            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+        (Helpers.getRecipeCategories(r) || []).forEach(cat => {
+            const normalizedCat = String(cat).toLowerCase();
+            categoryCounts[normalizedCat] = (categoryCounts[normalizedCat] || 0) + 1;
         });
     });
 
@@ -239,15 +240,16 @@ const AllRecipes = () => {
 
     // Filtering
     let filteredRecipes = recipes.filter(r => {
-        if (search && !(r.title || '').toLowerCase().includes(search.toLowerCase())) return false;
-        if (selectedCategory && !((r.categories || []).includes(selectedCategory))) return false;
+        const searchText = [Helpers.getRecipeDisplayName(r), ...Helpers.getRecipeCategories(r)].join(' ').toLowerCase();
+        if (search && !searchText.includes(search.toLowerCase())) return false;
+        if (selectedCategory && !((Helpers.getRecipeCategories(r) || []).map((cat) => String(cat).toLowerCase()).includes(selectedCategory))) return false;
         return true;
     });
 
     // Sorting (support title and rating)
     filteredRecipes.sort((a, b) => {
         if (sortBy === 'title') {
-            const cmp = (a.title || '').localeCompare(b.title || '');
+            const cmp = (Helpers.getRecipeDisplayName(a) || '').localeCompare(Helpers.getRecipeDisplayName(b) || '');
             return sortAsc ? cmp : -cmp;
         }
         if (sortBy === 'rating') {

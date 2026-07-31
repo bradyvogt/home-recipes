@@ -10,6 +10,16 @@ export const parseDurationToMinutes = (iso) => {
     return hours * 60 + minutes + Math.round(seconds / 60);
 };
 
+export const getRecipeDisplayName = (recipe = {}) => recipe.name || '';
+export const getRecipeCategories = (recipe = {}) => {
+    if (Array.isArray(recipe.recipeCategory)) return recipe.recipeCategory;
+    if (Array.isArray(recipe.categories)) return recipe.categories;
+    return [];
+};
+export const getRecipeIngredients = (recipe = {}) => recipe.recipeIngredient || recipe.ingredients || [];
+export const getRecipeInstructions = (recipe = {}) => recipe.recipeInstructions || recipe.instructions || [];
+export const getRecipeServings = (recipe = {}) => recipe.recipeYield ?? recipe.servings ?? 0;
+
 export const getTextFromInstruction = (ins) => {
     if (!ins) return '';
     if (typeof ins === 'string') return ins;
@@ -99,7 +109,22 @@ const parseRecipeWithSchema = (node) => {
         console.warn('Recipe schema validation failed', result.error, normalized);
         return null;
     }
-    return result.data;
+
+    const recipe = result.data;
+    const normalizedCategories = (recipe.recipeCategory || [])
+        .map((category) => String(category).trim())
+        .filter(Boolean);
+
+    return {
+        ...recipe,
+        name: recipe.name || '',
+        servings: recipe.recipeYield ?? 0,
+        ingredients: recipe.recipeIngredient ?? [],
+        instructions: recipe.recipeInstructions ?? [],
+        categories: normalizedCategories.map((category) => String(category).toLowerCase()),
+        prep_time: parseDurationToMinutes(recipe.prepTime),
+        cook_time: parseDurationToMinutes(recipe.cookTime),
+    };
 };
 
 export const parseJsonLdToRecipes = (data) => {
@@ -125,73 +150,17 @@ export const parseJsonLdToRecipes = (data) => {
         if (!isRecipe) return;
 
         const id = node['@id'] || node.id || `r-${idx}`;
-        const name = node.name || node.headline || node.title || String(id);
-        const description = node.description || '';
-        const sourceType = node.sourceType || node.source_type || '';
-        const sourceLink = node.sourceLink || node.source_link || node.url || '';
-
-        const rawYield = node.recipeYield ?? node.yield ?? node.servings;
-        let recipeYield = 0;
-        if (typeof rawYield === 'number') recipeYield = Math.round(rawYield);
-        else if (typeof rawYield === 'string') {
-            const match = rawYield.match(/(\d+)/);
-            recipeYield = match ? Number(match[1]) : 0;
-        } else if (Array.isArray(rawYield)) {
-            const joined = rawYield.join(' ');
-            const match = joined.match(/(\d+)/);
-            recipeYield = match ? Number(match[1]) : 0;
-        }
-
-        const prepTime = node.prepTime || node.prep_time || node.prep || '';
-        const cookTime = node.cookTime || node.cook_time || node.cook || '';
-        const totalTime = node.totalTime || node.total_time || node.total || '';
-
-        const ingredients = Array.isArray(node.recipeIngredient)
-            ? node.recipeIngredient
-            : node.recipeIngredient
-                ? [node.recipeIngredient]
-                : Array.isArray(node.ingredients)
-                    ? node.ingredients
-                    : node.ingredients
-                        ? [node.ingredients]
-                        : [];
-
-        let instructions = [];
-        if (node.recipeInstructions) {
-            if (Array.isArray(node.recipeInstructions)) instructions = node.recipeInstructions.map(getTextFromInstruction).filter(Boolean);
-            else if (typeof node.recipeInstructions === 'string') instructions = [node.recipeInstructions];
-            else if (node.recipeInstructions.text) instructions = [node.recipeInstructions.text];
-        }
-
-        const recipeCategory = Array.isArray(node.recipeCategory)
-            ? node.recipeCategory
-            : node.recipeCategory
-                ? [node.recipeCategory]
-                : node.keywords
-                    ? typeof node.keywords === 'string'
-                        ? node.keywords.split(',').map((s) => s.trim())
-                        : node.keywords
-                    : [];
-
         const recipe = parseRecipeWithSchema(node);
         if (!recipe) return;
 
         const rating = node.aggregateRating && node.aggregateRating.ratingValue ? Number(node.aggregateRating.ratingValue) : (node.ratingValue ? Number(node.ratingValue) : 0);
-        const prep_time = parseDurationToMinutes(recipe.prepTime);
-        const cook_time = parseDurationToMinutes(recipe.cookTime);
 
         items.push({
             id,
             ...recipe,
             rating,
             image: node.image || '',
-            servings: recipe.recipeYield,
-            ingredients: recipe.recipeIngredient,
-            instructions: recipe.recipeInstructions,
-            categories: recipe.recipeCategory.map((c) => String(c).toLowerCase()),
             commonIngredients: [],
-            prep_time,
-            cook_time,
         });
     });
 

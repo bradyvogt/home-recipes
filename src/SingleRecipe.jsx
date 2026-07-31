@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import { toSlug, formatTime, parseDurationToMinutes } from './utils/helpers';
+import { toSlug, formatTime, parseDurationToMinutes, getRecipeDisplayName } from './utils/helpers';
 import { fetchRecipesData, getRecipesUrl, getStorageFileName } from './utils/supabaseClient';
 import { useAuth } from './AuthContext';
 
@@ -109,7 +109,7 @@ export default function SingleRecipe() {
 
         if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
           const found = window.__loadedRecipes.find(
-            (r) => toSlug(r.name || r.title || '') === rawParam
+            (r) => toSlug(getRecipeDisplayName(r) || '') === rawParam
           );
           if (found) {
             setRecipe(found);
@@ -127,7 +127,7 @@ export default function SingleRecipe() {
         window.__loadedRecipes = parsedRecipes;
 
         const foundRecipe = parsedRecipes.find(
-          (r) => toSlug(r.name || r.title || '') === rawParam.toLowerCase()
+          (r) => toSlug(getRecipeDisplayName(r) || '') === rawParam.toLowerCase()
         );
 
         if (!foundRecipe) {
@@ -194,13 +194,13 @@ export default function SingleRecipe() {
     rating,
   } = recipe;
 
-  const displayName = name || title || 'Untitled Recipe';
+  const displayName = getRecipeDisplayName(recipe) || name || title || 'Untitled Recipe';
   const servings = recipeYield || recipe.servings || 0;
   const prepMinutes = getMinutesFromTimeValue(prepTime);
   const cookMinutes = getMinutesFromTimeValue(cookTime);
   const totalMinutes = getMinutesFromTimeValue(totalTime);
 
-  const recipeSlug = rawParam || toSlug(recipe?.name || recipe?.title || '');
+  const recipeSlug = rawParam || toSlug(getRecipeDisplayName(recipe) || '');
 
   const handleEditChange = (field) => (event) => {
     const rawValue = event.target.value;
@@ -267,7 +267,7 @@ export default function SingleRecipe() {
       const refreshedRecipes = window.__loadedRecipes && Array.isArray(window.__loadedRecipes)
         ? window.__loadedRecipes
         : null;
-      const refreshedRecipe = refreshedRecipes?.find((item) => toSlug(item.name || item.title || '') === recipeSlug) || updatedRecipe;
+      const refreshedRecipe = refreshedRecipes?.find((item) => toSlug(getRecipeDisplayName(item) || '') === recipeSlug) || updatedRecipe;
 
       setRecipe(refreshedRecipe);
       setEditValues(initializeEditValues(refreshedRecipe));
@@ -279,7 +279,7 @@ export default function SingleRecipe() {
 
       if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
         window.__loadedRecipes = window.__loadedRecipes.map((item) => {
-          const itemSlug = toSlug(item.name || item.title || '');
+          const itemSlug = toSlug(getRecipeDisplayName(item) || '');
           return itemSlug === recipeSlug ? refreshedRecipe : item;
         });
       }
@@ -329,7 +329,7 @@ export default function SingleRecipe() {
       const refreshedRecipes = window.__loadedRecipes && Array.isArray(window.__loadedRecipes)
         ? window.__loadedRecipes
         : null;
-      const refreshedRecipe = refreshedRecipes?.find((item) => toSlug(item.name || item.title || '') === recipeSlug) || updatedRecipe;
+      const refreshedRecipe = refreshedRecipes?.find((item) => toSlug(getRecipeDisplayName(item) || '') === recipeSlug) || updatedRecipe;
 
       setRecipe(refreshedRecipe);
       setEditValues(initializeEditValues(refreshedRecipe));
@@ -340,7 +340,7 @@ export default function SingleRecipe() {
 
       if (window.__loadedRecipes && Array.isArray(window.__loadedRecipes)) {
         window.__loadedRecipes = window.__loadedRecipes.map((item) => {
-          const itemSlug = toSlug(item.name || item.title || '');
+          const itemSlug = toSlug(getRecipeDisplayName(item) || '');
           return itemSlug === recipeSlug ? refreshedRecipe : item;
         });
       }
@@ -499,10 +499,6 @@ export default function SingleRecipe() {
             <div style={styles.fieldRowSmall}>
               <label style={styles.fieldLabel}>Cook time</label>
               <input type="number" min="0" step="1" value={editValues.cookTime} onChange={handleEditChange('cookTime')} style={styles.fieldInput} />
-            </div>
-            <div style={styles.fieldRowSmall}>
-              <label style={styles.fieldLabel}>Total time</label>
-              <input type="number" min="0" step="1" value={editValues.totalTime} onChange={handleEditChange('totalTime')} style={styles.fieldInput} />
             </div>
           </div>
           <div style={styles.fieldRow}>
