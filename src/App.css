@@ -4,6 +4,48 @@ body {
     padding: 0;
     background-color: #f4f4f9;
 }
+.migration-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    padding: 18px 24px;
+    background: #183f25;
+    color: #fff;
+    text-align: center;
+}
+
+.migration-message {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.migration-button {
+    display: inline-block;
+    padding: 14px 28px;
+    border: 2px solid #fff;
+    border-radius: 8px;
+    background: #fff;
+    color: #183f25;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.migration-button:hover,
+.migration-button:focus-visible {
+    background: #dff3e4;
+    color: #183f25;
+}
+
+.migration-button:focus-visible {
+    outline: 3px solid #f6d365;
+    outline-offset: 3px;
+}
+
 header {
     background-color: #ecf8ef;
     color: #246231;
